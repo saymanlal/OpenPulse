@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { SCENE_CONFIG } from '@/lib/constants';
 import { generateSampleGraph } from '@/lib/sampleData';
 import { useGraphStore } from '@/stores/graphStore';
@@ -13,16 +13,22 @@ export default function Scene() {
   const nodes = useGraphStore((state) => state.nodes);
   const edges = useGraphStore((state) => state.edges);
   const setGraphData = useGraphStore((state) => state.setGraphData);
+  const [simulationEnabled, setSimulationEnabled] = useState(true);
 
   useEffect(() => {
     const sampleData = generateSampleGraph(20);
     setGraphData(sampleData);
+    const timer = setTimeout(() => {
+      setSimulationEnabled(false);
+    }, 2000);
+
+    return () => clearTimeout(timer);
   }, [setGraphData]);
 
   useForceSimulation({
     nodes,
     edges,
-    enabled: true,
+    enabled: simulationEnabled,
     onUpdate: (updatedNodes) => {
       setGraphData({ nodes: updatedNodes, edges });
     },
@@ -34,18 +40,18 @@ export default function Scene() {
 
       <color attach="background" args={[SCENE_CONFIG.background]} />
 
-      <ambientLight 
-        intensity={SCENE_CONFIG.lighting.ambient.intensity} 
+      <ambientLight
+        intensity={SCENE_CONFIG.lighting.ambient.intensity}
         color={SCENE_CONFIG.lighting.ambient.color}
       />
-      
+
       <directionalLight
         intensity={SCENE_CONFIG.lighting.directional.intensity}
         color={SCENE_CONFIG.lighting.directional.color}
         position={SCENE_CONFIG.lighting.directional.position}
         castShadow
       />
-      
+
       <pointLight
         intensity={SCENE_CONFIG.lighting.point.intensity}
         color={SCENE_CONFIG.lighting.point.color}
