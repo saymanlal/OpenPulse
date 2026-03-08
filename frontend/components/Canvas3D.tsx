@@ -2,6 +2,8 @@
 
 import { Canvas } from '@react-three/fiber';
 import { Suspense } from 'react';
+import Scene from './Scene';
+import { SCENE_CONFIG } from '@/lib/constants';
 
 function LoadingFallback() {
   return (
@@ -16,19 +18,21 @@ export default function Canvas3D() {
     <div className="w-full h-full bg-black">
       <Suspense fallback={<LoadingFallback />}>
         <Canvas
-          camera={{ position: [0, 0, 10], fov: 75 }}
-          gl={{ antialias: true, alpha: false }}
+          camera={{ 
+            position: SCENE_CONFIG.camera.initialPosition, 
+            fov: SCENE_CONFIG.camera.fov,
+            near: SCENE_CONFIG.camera.near,
+            far: SCENE_CONFIG.camera.far,
+          }}
+          gl={{ 
+            antialias: true, 
+            alpha: false,
+            powerPreference: 'high-performance',
+          }}
           dpr={[1, 2]}
+          shadows
         >
-          <color attach="background" args={['#0a0a0a']} />
-          
-          <ambientLight intensity={0.5} />
-          <pointLight position={[10, 10, 10]} intensity={1} />
-          
-          <mesh>
-            <boxGeometry args={[1, 1, 1]} />
-            <meshStandardMaterial color="#4f46e5" />
-          </mesh>
+          <Scene />
         </Canvas>
       </Suspense>
     </div>
