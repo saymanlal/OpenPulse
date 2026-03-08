@@ -49,6 +49,16 @@ export const NODE_CONFIG = {
   emissiveIntensity: 0.2,
 } as const;
 
+export const EDGE_CONFIG = {
+  baseColor: '#4b5563',
+  selectedColor: '#3b82f6',
+  hoveredColor: '#60a5fa',
+  lineWidth: 2,
+  opacity: 0.4,
+  selectedOpacity: 0.8,
+  hoveredOpacity: 0.6,
+} as const;
+
 export const NODE_COLORS: Record<NodeType, string> = {
   service: '#10b981',      // green
   library: '#3b82f6',      // blue

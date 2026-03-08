@@ -6,6 +6,7 @@ import { generateSampleGraph } from '@/lib/sampleData';
 import { useGraphStore } from '@/stores/graphStore';
 import CameraController from './CameraController';
 import GraphNodes from './GraphNodes';
+import GraphEdges from './GraphEdges';
 
 export default function Scene() {
   const setGraphData = useGraphStore((state) => state.setGraphData);
@@ -48,6 +49,7 @@ export default function Scene() {
         ]}
       />
 
+      <GraphEdges />
       <GraphNodes />
     </>
   );
