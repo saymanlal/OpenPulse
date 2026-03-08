@@ -4,17 +4,29 @@ import { useEffect } from 'react';
 import { SCENE_CONFIG } from '@/lib/constants';
 import { generateSampleGraph } from '@/lib/sampleData';
 import { useGraphStore } from '@/stores/graphStore';
+import { useForceSimulation } from '@/hooks/useForceSimulation';
 import CameraController from './CameraController';
 import GraphNodes from './GraphNodes';
 import GraphEdges from './GraphEdges';
 
 export default function Scene() {
+  const nodes = useGraphStore((state) => state.nodes);
+  const edges = useGraphStore((state) => state.edges);
   const setGraphData = useGraphStore((state) => state.setGraphData);
 
   useEffect(() => {
     const sampleData = generateSampleGraph(20);
     setGraphData(sampleData);
   }, [setGraphData]);
+
+  useForceSimulation({
+    nodes,
+    edges,
+    enabled: true,
+    onUpdate: (updatedNodes) => {
+      setGraphData({ nodes: updatedNodes, edges });
+    },
+  });
 
   return (
     <>
