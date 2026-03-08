@@ -1,9 +1,20 @@
 'use client';
 
+import { useEffect } from 'react';
 import { SCENE_CONFIG } from '@/lib/constants';
+import { generateSampleGraph } from '@/lib/sampleData';
+import { useGraphStore } from '@/stores/graphStore';
 import CameraController from './CameraController';
+import GraphNodes from './GraphNodes';
 
 export default function Scene() {
+  const setGraphData = useGraphStore((state) => state.setGraphData);
+
+  useEffect(() => {
+    const sampleData = generateSampleGraph(20);
+    setGraphData(sampleData);
+  }, [setGraphData]);
+
   return (
     <>
       <CameraController />
@@ -37,14 +48,7 @@ export default function Scene() {
         ]}
       />
 
-      <mesh position={[0, 2, 0]}>
-        <boxGeometry args={[2, 2, 2]} />
-        <meshStandardMaterial 
-          color="#4f46e5" 
-          metalness={0.3}
-          roughness={0.4}
-        />
-      </mesh>
+      <GraphNodes />
     </>
   );
 }

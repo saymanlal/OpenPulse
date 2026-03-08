@@ -1,9 +1,12 @@
 'use client';
 
 import { useState } from 'react';
+import { useGraphStore } from '@/stores/graphStore';
 
 export default function Inspector() {
   const [isOpen, setIsOpen] = useState(true);
+  const nodes = useGraphStore((state) => state.nodes);
+  const edges = useGraphStore((state) => state.edges);
 
   return (
     <div 
@@ -40,20 +43,37 @@ export default function Inspector() {
               <div className="space-y-2 text-sm">
                 <div className="flex justify-between text-gray-400">
                   <span>Nodes:</span>
-                  <span className="text-gray-200">0</span>
+                  <span className="text-gray-200 font-mono">{nodes.length}</span>
                 </div>
                 <div className="flex justify-between text-gray-400">
                   <span>Edges:</span>
-                  <span className="text-gray-200">0</span>
+                  <span className="text-gray-200 font-mono">{edges.length}</span>
                 </div>
+              </div>
+            </div>
+
+            <div className="border-t border-gray-800 pt-4">
+              <h3 className="text-sm font-medium text-gray-300 mb-2">Node Types</h3>
+              <div className="space-y-1 text-xs">
+                {['service', 'library', 'repository', 'database', 'api', 'server'].map((type) => {
+                  const count = nodes.filter((n) => n.type === type).length;
+                  if (count === 0) return null;
+                  return (
+                    <div key={type} className="flex justify-between text-gray-400">
+                      <span className="capitalize">{type}:</span>
+                      <span className="text-gray-200 font-mono">{count}</span>
+                    </div>
+                  );
+                })}
               </div>
             </div>
 
             <div className="border-t border-gray-800 pt-4">
               <h3 className="text-sm font-medium text-gray-300 mb-2">Controls</h3>
               <div className="text-xs text-gray-400 space-y-1">
-                <p>• Click and drag to rotate</p>
-                <p>• Scroll to zoom</p>
+                <p>• Drag to rotate camera</p>
+                <p>• Scroll to zoom in/out</p>
+                <p>• Right-click drag to pan</p>
                 <p>• Click node to select</p>
               </div>
             </div>
