@@ -1,0 +1,7 @@
+# Scripts Directory
+
+This directory contains utility scripts for OpenPulse:
+
+- `demo_data_generator.py` - Generates demo datasets (Phase 15)
+- Data processing scripts
+- Deployment automation scripts
