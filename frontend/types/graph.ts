@@ -1,0 +1,39 @@
+export type NodeType = 
+  | 'service' 
+  | 'library' 
+  | 'repository' 
+  | 'database' 
+  | 'api' 
+  | 'server' 
+  | 'ip' 
+  | 'threat' 
+  | 'vulnerability';
+
+export interface GraphNode {
+  id: string;
+  label: string;
+  type: NodeType;
+  position: [number, number, number];
+  metadata?: Record<string, any>;
+  riskScore?: number;
+}
+
+export interface GraphEdge {
+  id: string;
+  source: string;
+  target: string;
+  weight?: number;
+  label?: string;
+}
+
+export interface GraphData {
+  nodes: GraphNode[];
+  edges: GraphEdge[];
+}
+
+export interface SelectedNode extends GraphNode {
+  connections: {
+    incoming: string[];
+    outgoing: string[];
+  };
+}
