@@ -18,7 +18,8 @@ export function useForceSimulation({
 }: UseForceSimulationProps) {
   const simulationRef = useRef<ForceSimulation3D | null>(null);
   const tickCountRef = useRef(0);
-  const maxTicks = 300; // Stop after 300 ticks
+  const maxTicks = 800; // Stop after 300 ticks
+  const frameSkip = 4; // run physics every 4 frames
 
   useEffect(() => {
     if (nodes.length === 0 || !enabled) return;
@@ -34,15 +35,19 @@ export function useForceSimulation({
   useFrame(() => {
     if (!simulationRef.current || !enabled || tickCountRef.current >= maxTicks) return;
 
+    if (tickCountRef.current % frameSkip !== 0) {
+      tickCountRef.current++;
+      return;
+    }
+
     const shouldContinue = simulationRef.current.tick();
-    
+
     if (shouldContinue) {
       const updatedNodes = simulationRef.current.getNodes();
       onUpdate?.(updatedNodes);
-      tickCountRef.current++;
-    } else {
-      tickCountRef.current = maxTicks;
     }
+
+    tickCountRef.current++;
   });
 
   return {
