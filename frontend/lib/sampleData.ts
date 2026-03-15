@@ -12,8 +12,9 @@ const NODE_TYPES: NodeType[] = [
 export function generateSampleGraph(nodeCount: number = 20): GraphData {
   const nodes = [];
   const edges = [];
+  const edgeSet = new Set<string>(); // Track unique edges
 
-  // Generate nodes with random initial positions
+  // Generate nodes
   for (let i = 0; i < nodeCount; i++) {
     nodes.push({
       id: `node-${i}`,
@@ -24,26 +25,35 @@ export function generateSampleGraph(nodeCount: number = 20): GraphData {
         (Math.random() - 0.5) * 20,
         (Math.random() - 0.5) * 20,
       ] as [number, number, number],
+      riskScore: Math.random(),
       metadata: {
         index: i,
         createdAt: new Date().toISOString(),
       },
-      riskScore: Math.random(),
     });
   }
 
-  // Generate edges - each node connects to 1-3 others
+  // Generate edges (ensure unique)
+  const edgesPerNode = Math.floor((nodeCount * 2.5) / nodeCount); // ~2.5 edges per node on average
+  
   for (let i = 0; i < nodeCount; i++) {
-    const connectionCount = 1 + Math.floor(Math.random() * 3);
-    for (let j = 0; j < connectionCount; j++) {
-      const targetIndex = Math.floor(Math.random() * nodeCount);
-      if (targetIndex !== i) {
-        edges.push({
-          id: `edge-${i}-${targetIndex}`,
-          source: `node-${i}`,
-          target: `node-${targetIndex}`,
-          weight: Math.random(),
-        });
+    const numEdges = Math.floor(Math.random() * edgesPerNode) + 1;
+    
+    for (let j = 0; j < numEdges; j++) {
+      const target = Math.floor(Math.random() * nodeCount);
+      if (target !== i) {
+        // Create sorted edge key to avoid duplicates (A->B and B->A are same)
+        const edgeKey = [i, target].sort((a, b) => a - b).join('-');
+        
+        if (!edgeSet.has(edgeKey)) {
+          edgeSet.add(edgeKey);
+          edges.push({
+            id: `edge-${i}-${target}`,
+            source: `node-${i}`,
+            target: `node-${target}`,
+            weight: Math.random(),
+          });
+        }
       }
     }
   }
