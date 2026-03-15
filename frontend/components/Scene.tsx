@@ -53,18 +53,18 @@ export default function Scene() {
 
       <color attach="background" args={[SCENE_CONFIG.background]} />
 
-      <ambientLight 
-        intensity={SCENE_CONFIG.lighting.ambient.intensity} 
+      <ambientLight
+        intensity={SCENE_CONFIG.lighting.ambient.intensity}
         color={SCENE_CONFIG.lighting.ambient.color}
       />
-      
+
       <directionalLight
         intensity={SCENE_CONFIG.lighting.directional.intensity}
         color={SCENE_CONFIG.lighting.directional.color}
         position={SCENE_CONFIG.lighting.directional.position}
         castShadow
       />
-      
+
       <pointLight
         intensity={SCENE_CONFIG.lighting.point.intensity}
         color={SCENE_CONFIG.lighting.point.color}

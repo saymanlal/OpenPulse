@@ -45,5 +45,7 @@ export function useForceSimulation(
     if (tickCountRef.current > 300) {
       simulationRef.current = null;
     }
+
+    tickCountRef.current++;
   });
 }
