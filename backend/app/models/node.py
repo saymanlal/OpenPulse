@@ -24,7 +24,7 @@ class NodeModel(Base):
     position_y = Column(Float, default=0.0)
     position_z = Column(Float, default=0.0)
     risk_score = Column(Float, nullable=True)
-    meta_data = Column("metadata", JSON, default=dict)  # ← renamed attribute, DB column same
+    node_metadata = Column(JSON, default=dict)  # Changed from 'metadata'
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 
@@ -35,5 +35,5 @@ class NodeModel(Base):
             "type": self.type.value,
             "position": [self.position_x, self.position_y, self.position_z],
             "riskScore": self.risk_score,
-            "metadata": self.meta_data or {},  # ← yahan bhi update karo
+            "metadata": self.node_metadata or {},  # Return as 'metadata' in API
         }

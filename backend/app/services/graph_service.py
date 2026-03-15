@@ -48,7 +48,7 @@ class GraphService:
             position_y=node_data.position[1],
             position_z=node_data.position[2],
             risk_score=node_data.riskScore,
-            metadata=node_data.metadata,
+            node_metadata=node_data.metadata,  # Changed to node_metadata
         )
         db.add(node)
         await db.commit()
@@ -82,7 +82,7 @@ class GraphService:
         if node_data.riskScore is not None:
             node.risk_score = node_data.riskScore
         if node_data.metadata is not None:
-            node.metadata = node_data.metadata
+            node.node_metadata = node_data.metadata  # Changed to node_metadata
 
         await db.commit()
         await db.refresh(node)
