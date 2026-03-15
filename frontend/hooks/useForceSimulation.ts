@@ -1,67 +1,51 @@
 import { useEffect, useRef } from 'react';
 import { useFrame } from '@react-three/fiber';
-import { ForceSimulation3D } from '@/lib/forceSimulation';
+import { ForceSimulation } from '@/lib/forceSimulation';
+import { useGraphStore } from '@/stores/graphStore';
 import type { GraphNode, GraphEdge } from '@/types/graph';
 
-interface UseForceSimulationProps {
-  nodes: GraphNode[];
-  edges: GraphEdge[];
-  enabled?: boolean;
-  onUpdate?: (nodes: GraphNode[]) => void;
-}
-
-export function useForceSimulation({
-  nodes,
-  edges,
-  enabled = true,
-  onUpdate,
-}: UseForceSimulationProps) {
-  const simulationRef = useRef<ForceSimulation3D | null>(null);
+export function useForceSimulation(
+  nodes?: GraphNode[],
+  edges?: GraphEdge[],
+  enabled: boolean = true
+) {
+  const simulationRef = useRef<ForceSimulation | null>(null);
   const tickCountRef = useRef(0);
-  const maxTicks = 800; // Stop after 300 ticks
-  const frameSkip = 4; // run physics every 4 frames
+  const updateNodePosition = useGraphStore((state) => state.updateNodePosition);
+
+  const safeNodes = nodes ?? [];
+  const safeEdges = edges ?? [];
 
   useEffect(() => {
-    if (nodes.length === 0 || !enabled) return;
+    if (!enabled || safeNodes.length === 0) return;
 
-    simulationRef.current = new ForceSimulation3D(nodes, edges);
+    simulationRef.current = new ForceSimulation(safeNodes, safeEdges);
     tickCountRef.current = 0;
 
     return () => {
       simulationRef.current = null;
     };
-  }, [nodes, edges, enabled]);
+  }, [safeNodes.length, safeEdges.length, enabled]);
 
   useFrame(() => {
-    if (!simulationRef.current || !enabled || tickCountRef.current >= maxTicks) return;
+    const simulation = simulationRef.current;
 
-    if (tickCountRef.current % frameSkip !== 0) {
-      tickCountRef.current++;
-      return;
-    }
+    if (!simulation || simulation.isStable()) return;
 
-    const shouldContinue = simulationRef.current.tick();
+    const updatedNodes = simulation.tick();
 
-    if (shouldContinue) {
-      const updatedNodes = simulationRef.current.getNodes();
-      onUpdate?.(updatedNodes);
+    if (!updatedNodes || updatedNodes.length === 0) return;
+
+    updatedNodes.forEach((node) => {
+      updateNodePosition(node.id, node.position);
+    });
+
+    tickCountRef.current++;
+
+    if (tickCountRef.current > 300) {
+      simulationRef.current = null;
     }
 
     tickCountRef.current++;
   });
-
-  return {
-    restart: () => {
-      if (simulationRef.current) {
-        simulationRef.current.restart();
-        tickCountRef.current = 0;
-      }
-    },
-    stop: () => {
-      if (simulationRef.current) {
-        simulationRef.current.stop();
-        tickCountRef.current = maxTicks;
-      }
-    },
-  };
 }
