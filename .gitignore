@@ -1,3 +1,24 @@
+# Python
+backend/venv/
+venv/
+__pycache__/
+*.pyc
+
+# Env files
+.env
+
+# Node
+node_modules/
+
+# Build
+dist/
+.next/
+
+# OS
+.DS_Store
+Thumbs.db
+
+
 # Dependencies
 node_modules/
 .venv/
