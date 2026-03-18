@@ -231,3 +231,27 @@ OpenPulse
 Structural Visibility for Open-Source Ecosystems
 
 Built for open collaboration and ecosystem transparency.
+
+## Phase 14 - Performance Optimization
+
+Phase 14 focuses on large-graph rendering stability and frame consistency.
+
+### Optimizations Delivered
+
+- Instanced mesh node rendering retained and tuned for lower geometry complexity.
+- Edge rendering consolidated into a single `lineSegments` draw call to reduce object count.
+- Force simulation updates are now batched in Zustand to prevent per-node state churn.
+- Scene bootstrap now targets a 200-node fallback dataset to validate performance goals.
+- Simulation tick cadence is throttled for smoother frame pacing under heavier graphs.
+
+### Phase 14 Validation
+
+1. Start backend:
+   - `cd backend && uvicorn main:app --reload --port 8000`
+2. Start frontend:
+   - `cd frontend && npm install && npm run dev`
+3. Open `http://localhost:3000`.
+4. If backend is unavailable, the app auto-loads a 200-node demo graph.
+5. Interact with orbit controls and inspect hover/click node behavior.
+
+Expected result: smooth navigation and interaction on a graph at or above 200 nodes without frame stutter on a modern laptop GPU.
