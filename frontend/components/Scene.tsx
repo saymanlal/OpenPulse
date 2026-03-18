@@ -20,15 +20,11 @@ export default function Scene() {
   useEffect(() => {
     const initializeGraph = async () => {
       if (initialized) return;
-      
+
       try {
-        // Try to load from API first
         await loadGraph();
-        console.log('Graph loaded from API');
-      } catch (err) {
-        // If API fails, load demo data
-        console.log('API not available, loading demo data');
-        const sampleData = generateSampleGraph(20);
+      } catch {
+        const sampleData = generateSampleGraph(200);
         setGraphData(sampleData);
       } finally {
         setInitialized(true);
@@ -38,14 +34,7 @@ export default function Scene() {
     initializeGraph();
   }, [initialized, loadGraph, setGraphData]);
 
-  useForceSimulation({
-    nodes,
-    edges,
-    enabled: initialized,
-    onUpdate: (updatedNodes) => {
-      setGraphData({ nodes: updatedNodes, edges });
-    },
-  });
+  useForceSimulation(nodes, edges, initialized);
 
   return (
     <>

@@ -43,7 +43,7 @@ export const SCENE_CONFIG = {
 
 export const NODE_CONFIG = {
   size: 0.5,
-  segments: 16,
+  segments: 10,
   metalness: 0.3,
   roughness: 0.4,
   emissiveIntensity: 0.2,
@@ -75,6 +75,8 @@ export const PERFORMANCE = {
   targetFPS: 60,
   maxNodes: 1000,
   maxEdges: 2000,
+  simulationStepInterval: 1 / 60,
+  maxSimulationTicks: 500,
 } as const;
 
 // Cyber Intelligence Node Colors (aliases for clarity)
