@@ -76,3 +76,20 @@ export const PERFORMANCE = {
   maxNodes: 1000,
   maxEdges: 2000,
 } as const;
+
+// Cyber Intelligence Node Colors (aliases for clarity)
+export const CYBER_NODE_COLORS = {
+  ip: '#3b82f6',           // blue-500
+  threat: '#dc2626',       // red-600
+  vulnerability: '#f59e0b', // amber-500
+};
+
+// Severity Colors
+export const SEVERITY_COLORS = {
+  critical: '#dc2626',  // red-600
+  high: '#ea580c',      // orange-600
+  medium: '#f59e0b',    // amber-500
+  low: '#84cc16',       // lime-500
+  info: '#3b82f6',      // blue-500
+  none: '#6b7280',      // gray-500
+};
