@@ -255,3 +255,27 @@ Phase 14 focuses on large-graph rendering stability and frame consistency.
 5. Interact with orbit controls and inspect hover/click node behavior.
 
 Expected result: smooth navigation and interaction on a graph at or above 200 nodes without frame stutter on a modern laptop GPU.
+
+## Phase 15 - Demo Dataset Generator
+
+Phase 15 introduces a deterministic dataset pipeline for large-graph demos and a real-time fallback experience when the backend is offline.
+
+### Deliverables
+
+- Added `scripts/demo_data_generator.py` to generate exactly **200 nodes** and **400 edges**.
+- Generator output is saved to `docs/demo_dataset.json` for reproducible local demos.
+- Frontend fallback now loads a persistent 200/400 dataset automatically if API loading fails.
+- Demo fallback evolution now updates in real time every ~2.5 seconds (without requiring page reload).
+- Demo graph state is cached in local storage, so refreshing the page no longer regenerates a new random graph.
+
+### How to Test Phase 15
+
+1. Generate demo dataset:
+   - `python3 scripts/demo_data_generator.py`
+2. Start frontend:
+   - `cd frontend && npm install && npm run dev`
+3. Optionally keep backend offline to force demo fallback mode.
+4. Open `http://localhost:3000` and confirm:
+   - Graph loads with 200 nodes / 400 edges.
+   - Node risk/position jitter updates automatically every ~2.5 seconds.
+   - Refreshing the page keeps the same dataset baseline rather than creating a new random graph.

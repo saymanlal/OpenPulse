@@ -2,13 +2,13 @@
 
 import { useState } from 'react';
 import { useLoadGraphFromApi, useSaveGraphToApi, useApiConnection } from '@/hooks/useApiGraph';
-import { generateSampleGraph } from '@/lib/sampleData';
+import { generateSampleGraph, getOrCreateDemoDataset, persistDemoDataset } from '@/lib/sampleData';
 import { useGraphStore } from '@/stores/graphStore';
 
 export default function Header() {
   const [message, setMessage] = useState<string>('');
   const [messageType, setMessageType] = useState<'success' | 'error'>('success');
-  
+
   const { loadGraph, loading: loadLoading } = useLoadGraphFromApi();
   const { saveGraph, loading: saveLoading } = useSaveGraphToApi();
   const { connected, checking } = useApiConnection();
@@ -25,9 +25,9 @@ export default function Header() {
     try {
       const data = await loadGraph();
       showMessage(`Loaded ${data.nodes.length} nodes and ${data.edges.length} edges`);
-    } catch (err) {
+    } catch {
       showMessage('Failed to load from API. Using demo data.', 'error');
-      handleLoadDemo();
+      handleLoadDemo200();
     }
   };
 
@@ -35,7 +35,7 @@ export default function Header() {
     try {
       const data = await saveGraph();
       showMessage(`Saved ${data.nodes.length} nodes and ${data.edges.length} edges`);
-    } catch (err) {
+    } catch {
       showMessage('Failed to save to API', 'error');
     }
   };
@@ -44,7 +44,15 @@ export default function Header() {
     const demo = generateSampleGraph(20);
     setNodes(demo.nodes);
     setEdges(demo.edges);
-    showMessage('Demo data loaded');
+    showMessage('Demo data loaded (20 nodes)');
+  };
+
+  const handleLoadDemo200 = () => {
+    const demo = getOrCreateDemoDataset();
+    persistDemoDataset(demo);
+    setNodes(demo.nodes);
+    setEdges(demo.edges);
+    showMessage('Phase 15 dataset loaded (200 nodes / 400 edges)');
   };
 
   return (
@@ -57,8 +65,7 @@ export default function Header() {
           <span className="text-xs text-gray-500 border border-gray-700 px-2 py-1 rounded">
             v0.2.0
           </span>
-          
-          {/* API Connection Status */}
+
           {!checking && (
             <div className="flex items-center gap-2">
               <div className={`w-2 h-2 rounded-full ${connected ? 'bg-green-500' : 'bg-red-500'}`} />
@@ -68,7 +75,7 @@ export default function Header() {
             </div>
           )}
         </div>
-        
+
         <nav className="flex items-center gap-4">
           <button
             onClick={handleLoadFromApi}
@@ -77,7 +84,7 @@ export default function Header() {
           >
             {loadLoading ? 'Loading...' : 'Load from API'}
           </button>
-          
+
           <button
             onClick={handleSaveToApi}
             disabled={saveLoading || !connected}
@@ -85,24 +92,30 @@ export default function Header() {
           >
             {saveLoading ? 'Saving...' : 'Save to API'}
           </button>
-          
+
           <button
-            onClick={handleLoadDemo}
+            onClick={handleLoadDemo200}
             className="text-sm bg-blue-600 hover:bg-blue-700 px-4 py-1.5 rounded transition-colors"
           >
-            Demo Data
+            Demo 200/400
+          </button>
+
+          <button
+            onClick={handleLoadDemo}
+            className="text-sm text-gray-300 hover:text-white transition-colors"
+          >
+            Quick Demo
           </button>
         </nav>
       </div>
 
-      {/* Toast Message */}
       {message && (
         <div className="absolute top-full left-1/2 -translate-x-1/2 mt-2 z-50">
-          <div className={`px-4 py-2 rounded shadow-lg text-sm ${
-            messageType === 'success' 
-              ? 'bg-green-600 text-white' 
-              : 'bg-red-600 text-white'
-          }`}>
+          <div
+            className={`px-4 py-2 rounded shadow-lg text-sm ${
+              messageType === 'success' ? 'bg-green-600 text-white' : 'bg-red-600 text-white'
+            }`}
+          >
             {message}
           </div>
         </div>

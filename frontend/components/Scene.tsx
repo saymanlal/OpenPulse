@@ -2,7 +2,11 @@
 
 import { useEffect, useState } from 'react';
 import { SCENE_CONFIG } from '@/lib/constants';
-import { generateSampleGraph } from '@/lib/sampleData';
+import {
+  evolveDemoDataset,
+  getOrCreateDemoDataset,
+  persistDemoDataset,
+} from '@/lib/sampleData';
 import { useGraphStore } from '@/stores/graphStore';
 import { useForceSimulation } from '@/hooks/useForceSimulation';
 import { useLoadGraphFromApi } from '@/hooks/useApiGraph';
@@ -16,6 +20,7 @@ export default function Scene() {
   const setGraphData = useGraphStore((state) => state.setGraphData);
   const { loadGraph } = useLoadGraphFromApi();
   const [initialized, setInitialized] = useState(false);
+  const [isDemoMode, setIsDemoMode] = useState(false);
 
   useEffect(() => {
     const initializeGraph = async () => {
@@ -23,9 +28,11 @@ export default function Scene() {
 
       try {
         await loadGraph();
+        setIsDemoMode(false);
       } catch {
-        const sampleData = generateSampleGraph(200);
-        setGraphData(sampleData);
+        const fallbackData = getOrCreateDemoDataset();
+        setGraphData(fallbackData);
+        setIsDemoMode(true);
       } finally {
         setInitialized(true);
       }
@@ -33,6 +40,29 @@ export default function Scene() {
 
     initializeGraph();
   }, [initialized, loadGraph, setGraphData]);
+
+  useEffect(() => {
+    if (!initialized || !isDemoMode) {
+      return;
+    }
+
+    const interval = window.setInterval(() => {
+      const current = useGraphStore.getState();
+      if (current.nodes.length !== 200 || current.edges.length !== 400) {
+        return;
+      }
+
+      const evolved = evolveDemoDataset({
+        nodes: current.nodes,
+        edges: current.edges,
+      });
+
+      current.setGraphData(evolved);
+      persistDemoDataset(evolved);
+    }, 2500);
+
+    return () => window.clearInterval(interval);
+  }, [initialized, isDemoMode]);
 
   useForceSimulation(nodes, edges, initialized);
 
