@@ -1,10 +1,10 @@
 'use client';
 
-import { useRef, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 import { useFrame, ThreeEvent } from '@react-three/fiber';
 import * as THREE from 'three';
 import { useGraphStore } from '@/stores/graphStore';
-import { NODE_CONFIG, NODE_COLORS } from '@/lib/constants';
+import { NODE_COLORS, NODE_CONFIG } from '@/lib/constants';
 
 export default function GraphNodes() {
   const nodes = useGraphStore((state) => state.nodes);
@@ -14,73 +14,83 @@ export default function GraphNodes() {
   const setHoveredNode = useGraphStore((state) => state.setHoveredNode);
 
   const meshRef = useRef<THREE.InstancedMesh>(null);
-  const [hovered, setHovered] = useState(false);
   const tempObject = useMemo(() => new THREE.Object3D(), []);
-  const tempColor = useMemo(() => new THREE.Color(), []);
+
+  const selectedRef = useRef<string | null>(null);
+  const hoveredRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    selectedRef.current = selectedNodeId;
+  }, [selectedNodeId]);
+
+  useEffect(() => {
+    hoveredRef.current = hoveredNodeId;
+  }, [hoveredNodeId]);
 
   const colorArray = useMemo(() => {
     const colors = new Float32Array(nodes.length * 3);
-    nodes.forEach((node, i) => {
-      let color = tempColor.set(NODE_COLORS[node.type]);
-      
-      // Brighten selected node
-      if (node.id === selectedNodeId) {
-        color = color.clone().multiplyScalar(1.5);
-      }
-      // Slightly brighten hovered node
-      else if (node.id === hoveredNodeId) {
-        color = color.clone().multiplyScalar(1.2);
-      }
+
+    for (let i = 0; i < nodes.length; i += 1) {
+      const node = nodes[i];
+      const color = new THREE.Color(NODE_COLORS[node.type]);
 
       colors[i * 3] = color.r;
       colors[i * 3 + 1] = color.g;
       colors[i * 3 + 2] = color.b;
-    });
+    }
+
     return colors;
-  }, [nodes, tempColor, selectedNodeId, hoveredNodeId]);
+  }, [nodes]);
 
-  useFrame(() => {
-    if (!meshRef.current) return;
+  const updateInstanceMatrices = () => {
+    const mesh = meshRef.current;
+    if (!mesh) return;
 
-    nodes.forEach((node, i) => {
-      const isSelected = node.id === selectedNodeId;
-      const isHovered = node.id === hoveredNodeId;
-      
-      // Scale up selected or hovered nodes
-      const scale = isSelected ? NODE_CONFIG.size * 1.5 : 
-                    isHovered ? NODE_CONFIG.size * 1.3 : 
-                    NODE_CONFIG.size;
+    for (let i = 0; i < nodes.length; i += 1) {
+      const node = nodes[i];
+      const isSelected = node.id === selectedRef.current;
+      const isHovered = node.id === hoveredRef.current;
+
+      const scale = isSelected
+        ? NODE_CONFIG.size * 1.5
+        : isHovered
+          ? NODE_CONFIG.size * 1.3
+          : NODE_CONFIG.size;
 
       tempObject.position.set(node.position[0], node.position[1], node.position[2]);
       tempObject.scale.setScalar(scale);
       tempObject.updateMatrix();
-      meshRef.current!.setMatrixAt(i, tempObject.matrix);
-    });
+      mesh.setMatrixAt(i, tempObject.matrix);
+    }
 
-    meshRef.current.instanceMatrix.needsUpdate = true;
+    mesh.instanceMatrix.needsUpdate = true;
+  };
+
+  useFrame(() => {
+    updateInstanceMatrices();
   });
 
   const handleClick = (event: ThreeEvent<MouseEvent>) => {
     event.stopPropagation();
+
     const instanceId = event.instanceId;
-    if (instanceId !== undefined && instanceId < nodes.length) {
-      const clickedNode = nodes[instanceId];
-      setSelectedNode(clickedNode.id === selectedNodeId ? null : clickedNode.id);
-    }
+    if (instanceId === undefined || instanceId >= nodes.length) return;
+
+    const clickedNode = nodes[instanceId];
+    setSelectedNode(clickedNode.id === selectedNodeId ? null : clickedNode.id);
   };
 
   const handlePointerOver = (event: ThreeEvent<PointerEvent>) => {
     event.stopPropagation();
+
     const instanceId = event.instanceId;
-    if (instanceId !== undefined && instanceId < nodes.length) {
-      setHovered(true);
-      setHoveredNode(nodes[instanceId].id);
-      document.body.style.cursor = 'pointer';
-    }
+    if (instanceId === undefined || instanceId >= nodes.length) return;
+
+    setHoveredNode(nodes[instanceId].id);
+    document.body.style.cursor = 'pointer';
   };
 
   const handlePointerOut = () => {
-    setHovered(false);
     setHoveredNode(null);
     document.body.style.cursor = 'default';
   };
@@ -88,25 +98,23 @@ export default function GraphNodes() {
   if (nodes.length === 0) return null;
 
   return (
-    <instancedMesh 
-      ref={meshRef} 
+    <instancedMesh
+      ref={meshRef}
       args={[undefined, undefined, nodes.length]}
       onClick={handleClick}
       onPointerOver={handlePointerOver}
       onPointerOut={handlePointerOut}
+      frustumCulled={false}
     >
       <sphereGeometry args={[1, NODE_CONFIG.segments, NODE_CONFIG.segments]}>
-        <instancedBufferAttribute
-          attach="attributes-color"
-          args={[colorArray, 3]}
-        />
+        <instancedBufferAttribute attach="attributes-color" args={[colorArray, 3]} />
       </sphereGeometry>
       <meshStandardMaterial
         vertexColors
         metalness={NODE_CONFIG.metalness}
         roughness={NODE_CONFIG.roughness}
-        emissive="#ffffff"
-        emissiveIntensity={hovered ? NODE_CONFIG.emissiveIntensity * 2 : NODE_CONFIG.emissiveIntensity}
+        emissive="#101010"
+        emissiveIntensity={NODE_CONFIG.emissiveIntensity}
       />
     </instancedMesh>
   );
