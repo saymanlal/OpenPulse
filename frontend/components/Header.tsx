@@ -1,125 +1,94 @@
 'use client';
 
-import { useState } from 'react';
-import { useLoadGraphFromApi, useSaveGraphToApi, useApiConnection } from '@/hooks/useApiGraph';
-import { generateSampleGraph, getOrCreateDemoDataset, persistDemoDataset } from '@/lib/sampleData';
+import { FormEvent, useEffect, useState } from 'react';
+
+import { useApiConnection, useRepositoryAnalysis } from '@/hooks/useApiGraph';
 import { useGraphStore } from '@/stores/graphStore';
 
 export default function Header() {
-  const [message, setMessage] = useState<string>('');
-  const [messageType, setMessageType] = useState<'success' | 'error'>('success');
+  const [repoInput, setRepoInput] = useState('facebook/react');
+  const [message, setMessage] = useState<string | null>(null);
+  const nodes = useGraphStore((state) => state.nodes);
+  const edges = useGraphStore((state) => state.edges);
+  const { analyzeRepository, loadDemoGraph, loading, status, error, source } = useRepositoryAnalysis();
+  const { connected, checkConnection } = useApiConnection();
 
-  const { loadGraph, loading: loadLoading } = useLoadGraphFromApi();
-  const { saveGraph, loading: saveLoading } = useSaveGraphToApi();
-  const { connected, checking } = useApiConnection();
-  const setNodes = useGraphStore((state) => state.setNodes);
-  const setEdges = useGraphStore((state) => state.setEdges);
+  useEffect(() => {
+    checkConnection();
+  }, [checkConnection]);
 
-  const showMessage = (msg: string, type: 'success' | 'error' = 'success') => {
-    setMessage(msg);
-    setMessageType(type);
-    setTimeout(() => setMessage(''), 3000);
-  };
-
-  const handleLoadFromApi = async () => {
-    try {
-      const data = await loadGraph();
-      showMessage(`Loaded ${data.nodes.length} nodes and ${data.edges.length} edges`);
-    } catch {
-      showMessage('Failed to load from API. Using demo data.', 'error');
-      handleLoadDemo200();
+  useEffect(() => {
+    if (error) {
+      setMessage(error);
+      return;
     }
-  };
 
-  const handleSaveToApi = async () => {
-    try {
-      const data = await saveGraph();
-      showMessage(`Saved ${data.nodes.length} nodes and ${data.edges.length} edges`);
-    } catch {
-      showMessage('Failed to save to API', 'error');
+    if (nodes.length > 0) {
+      setMessage(`Loaded ${nodes.length} nodes and ${edges.length} edges from ${source}.`);
     }
-  };
+  }, [edges.length, error, nodes.length, source]);
 
-  const handleLoadDemo = () => {
-    const demo = generateSampleGraph(20);
-    setNodes(demo.nodes);
-    setEdges(demo.edges);
-    showMessage('Demo data loaded (20 nodes)');
-  };
-
-  const handleLoadDemo200 = () => {
-    const demo = getOrCreateDemoDataset();
-    persistDemoDataset(demo);
-    setNodes(demo.nodes);
-    setEdges(demo.edges);
-    showMessage('Phase 15 dataset loaded (200 nodes / 400 edges)');
+  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    await analyzeRepository(repoInput);
   };
 
   return (
-    <header className="fixed top-0 left-0 right-0 z-50 bg-black/80 backdrop-blur-sm border-b border-gray-800">
-      <div className="flex items-center justify-between px-6 py-3">
-        <div className="flex items-center gap-4">
-          <h1 className="text-xl font-bold bg-gradient-to-r from-blue-400 to-purple-500 bg-clip-text text-transparent">
-            OpenPulse
-          </h1>
-          <span className="text-xs text-gray-500 border border-gray-700 px-2 py-1 rounded">
-            v0.2.0
-          </span>
-
-          {!checking && (
-            <div className="flex items-center gap-2">
-              <div className={`w-2 h-2 rounded-full ${connected ? 'bg-green-500' : 'bg-red-500'}`} />
-              <span className="text-xs text-gray-500">
-                {connected ? 'API Connected' : 'API Offline'}
-              </span>
-            </div>
-          )}
+    <header className="border-b border-slate-800 bg-slate-950/90 backdrop-blur-xl">
+      <div className="flex flex-col gap-4 px-5 py-4 lg:flex-row lg:items-center lg:justify-between lg:px-6">
+        <div className="space-y-1">
+          <div className="flex items-center gap-3">
+            <h1 className="text-xl font-semibold tracking-tight text-slate-100">OpenPulse</h1>
+            <span className="rounded-full border border-slate-800 bg-slate-900 px-2 py-0.5 text-[11px] uppercase tracking-[0.24em] text-slate-400">
+              phase16
+            </span>
+          </div>
+          <p className="text-sm text-slate-400">
+            Analyze a public GitHub repo and inspect its dependency graph in 3D.
+          </p>
         </div>
 
-        <nav className="flex items-center gap-4">
+        <form className="flex w-full flex-col gap-3 lg:max-w-3xl lg:flex-row" onSubmit={handleSubmit}>
+          <div className="flex-1 rounded-2xl border border-slate-800 bg-slate-900/80 px-4 py-3 shadow-inner shadow-black/20">
+            <label className="mb-1 block text-[11px] uppercase tracking-[0.24em] text-slate-500" htmlFor="repo-input">
+              GitHub repository
+            </label>
+            <input
+              id="repo-input"
+              value={repoInput}
+              onChange={(event) => setRepoInput(event.target.value)}
+              placeholder="owner/name"
+              className="w-full border-none bg-transparent text-sm text-slate-100 outline-none placeholder:text-slate-500"
+            />
+          </div>
+
           <button
-            onClick={handleLoadFromApi}
-            disabled={loadLoading || !connected}
-            className="text-sm text-gray-300 hover:text-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            type="submit"
+            disabled={loading}
+            className="rounded-2xl bg-blue-500 px-5 py-3 text-sm font-medium text-slate-950 transition hover:bg-blue-400 disabled:cursor-not-allowed disabled:opacity-70"
           >
-            {loadLoading ? 'Loading...' : 'Load from API'}
+            {loading ? 'Analyzing...' : 'Analyze'}
           </button>
 
           <button
-            onClick={handleSaveToApi}
-            disabled={saveLoading || !connected}
-            className="text-sm text-gray-300 hover:text-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            type="button"
+            onClick={loadDemoGraph}
+            className="rounded-2xl border border-slate-700 bg-slate-900 px-5 py-3 text-sm font-medium text-slate-200 transition hover:border-slate-500 hover:text-white"
           >
-            {saveLoading ? 'Saving...' : 'Save to API'}
+            Load Demo
           </button>
-
-          <button
-            onClick={handleLoadDemo200}
-            className="text-sm bg-blue-600 hover:bg-blue-700 px-4 py-1.5 rounded transition-colors"
-          >
-            Demo 200/400
-          </button>
-
-          <button
-            onClick={handleLoadDemo}
-            className="text-sm text-gray-300 hover:text-white transition-colors"
-          >
-            Quick Demo
-          </button>
-        </nav>
+        </form>
       </div>
 
-      {message && (
-        <div className="absolute top-full left-1/2 -translate-x-1/2 mt-2 z-50">
-          <div
-            className={`px-4 py-2 rounded shadow-lg text-sm ${
-              messageType === 'success' ? 'bg-green-600 text-white' : 'bg-red-600 text-white'
-            }`}
-          >
-            {message}
-          </div>
+      <div className="grid gap-3 border-t border-slate-900/80 bg-slate-950/70 px-5 py-3 text-sm text-slate-400 lg:grid-cols-[1fr_auto_auto] lg:items-center lg:px-6">
+        <div className="truncate">{loading ? status : message ?? 'Ready for analysis.'}</div>
+        <div className="rounded-full border border-slate-800 px-3 py-1 text-xs text-slate-300">
+          Backend {connected === false ? 'offline' : connected === true ? 'online' : 'checking'}
         </div>
-      )}
+        <div className="rounded-full border border-slate-800 px-3 py-1 text-xs text-slate-300">
+          Source {source}
+        </div>
+      </div>
     </header>
   );
 }

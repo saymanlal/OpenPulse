@@ -1,36 +1,33 @@
 'use client';
 
-import { Canvas } from '@react-three/fiber';
 import { Suspense } from 'react';
-import Scene from './Scene';
+import { Canvas } from '@react-three/fiber';
+
 import { SCENE_CONFIG } from '@/lib/constants';
+
+import Scene from './Scene';
 
 function LoadingFallback() {
   return (
-    <div className="flex items-center justify-center w-full h-full">
-      <div className="text-gray-400 text-sm">Loading 3D scene...</div>
+    <div className="flex h-full w-full items-center justify-center bg-slate-950 text-sm text-slate-500">
+      Preparing 3D scene...
     </div>
   );
 }
 
 export default function Canvas3D() {
   return (
-    <div className="w-full h-full bg-black">
+    <div className="h-full w-full bg-slate-950">
       <Suspense fallback={<LoadingFallback />}>
         <Canvas
-          camera={{ 
-            position: SCENE_CONFIG.camera.initialPosition, 
+          camera={{
+            position: SCENE_CONFIG.camera.initialPosition,
             fov: SCENE_CONFIG.camera.fov,
             near: SCENE_CONFIG.camera.near,
             far: SCENE_CONFIG.camera.far,
           }}
-          gl={{ 
-            antialias: true, 
-            alpha: false,
-            powerPreference: 'high-performance',
-          }}
-          dpr={[1, 2]}
-          shadows
+          gl={{ antialias: true, alpha: false, powerPreference: 'high-performance' }}
+          dpr={[1, 1.75]}
         >
           <Scene />
         </Canvas>

@@ -1,106 +1,66 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef } from 'react';
+import { useFrame, useThree } from '@react-three/fiber';
+import * as THREE from 'three';
+
 import { SCENE_CONFIG } from '@/lib/constants';
-import {
-  evolveDemoDataset,
-  getOrCreateDemoDataset,
-  persistDemoDataset,
-} from '@/lib/sampleData';
+import { getOrCreateDemoDataset, persistDemoDataset } from '@/lib/sampleData';
 import { useGraphStore } from '@/stores/graphStore';
-import { useForceSimulation } from '@/hooks/useForceSimulation';
-import { useLoadGraphFromApi } from '@/hooks/useApiGraph';
+
 import CameraController from './CameraController';
-import GraphNodes from './GraphNodes';
 import GraphEdges from './GraphEdges';
+import GraphNodes from './GraphNodes';
 
 export default function Scene() {
+  const groupRef = useRef<THREE.Group>(null);
   const nodes = useGraphStore((state) => state.nodes);
-  const edges = useGraphStore((state) => state.edges);
   const setGraphData = useGraphStore((state) => state.setGraphData);
-  const { loadGraph } = useLoadGraphFromApi();
-  const [initialized, setInitialized] = useState(false);
-  const [isDemoMode, setIsDemoMode] = useState(false);
+  const setSelectedNode = useGraphStore((state) => state.setSelectedNode);
+  const { scene } = useThree();
 
   useEffect(() => {
-    const initializeGraph = async () => {
-      if (initialized) return;
-
-      try {
-        await loadGraph();
-        setIsDemoMode(false);
-      } catch {
-        const fallbackData = getOrCreateDemoDataset();
-        setGraphData(fallbackData);
-        setIsDemoMode(true);
-      } finally {
-        setInitialized(true);
-      }
+    scene.fog = new THREE.FogExp2(SCENE_CONFIG.fog.color, SCENE_CONFIG.fog.density);
+    return () => {
+      scene.fog = null;
     };
-
-    initializeGraph();
-  }, [initialized, loadGraph, setGraphData]);
+  }, [scene]);
 
   useEffect(() => {
-    if (!initialized || !isDemoMode) {
+    if (nodes.length > 0) {
       return;
     }
+    const demo = getOrCreateDemoDataset();
+    persistDemoDataset(demo);
+    setGraphData(demo);
+  }, [nodes.length, setGraphData]);
 
-    const interval = window.setInterval(() => {
-      const current = useGraphStore.getState();
-      if (current.nodes.length !== 200 || current.edges.length !== 400) {
-        return;
-      }
-
-      const evolved = evolveDemoDataset({
-        nodes: current.nodes,
-        edges: current.edges,
-      });
-
-      current.setGraphData(evolved);
-      persistDemoDataset(evolved);
-    }, 2500);
-
-    return () => window.clearInterval(interval);
-  }, [initialized, isDemoMode]);
-
-  useForceSimulation(nodes, edges, initialized);
+  useFrame((state) => {
+    if (!groupRef.current) {
+      return;
+    }
+    groupRef.current.rotation.y = Math.sin(state.clock.elapsedTime * 0.12) * 0.08;
+  });
 
   return (
     <>
       <CameraController />
-
       <color attach="background" args={[SCENE_CONFIG.background]} />
-
-      <ambientLight
-        intensity={SCENE_CONFIG.lighting.ambient.intensity}
-        color={SCENE_CONFIG.lighting.ambient.color}
-      />
-
+      <ambientLight intensity={SCENE_CONFIG.lighting.ambient.intensity} color={SCENE_CONFIG.lighting.ambient.color} />
       <directionalLight
         intensity={SCENE_CONFIG.lighting.directional.intensity}
         color={SCENE_CONFIG.lighting.directional.color}
         position={SCENE_CONFIG.lighting.directional.position}
-        castShadow
       />
-
       <pointLight
         intensity={SCENE_CONFIG.lighting.point.intensity}
         color={SCENE_CONFIG.lighting.point.color}
         position={SCENE_CONFIG.lighting.point.position}
       />
-
-      <gridHelper
-        args={[
-          SCENE_CONFIG.grid.size,
-          SCENE_CONFIG.grid.divisions,
-          SCENE_CONFIG.grid.colorCenterLine,
-          SCENE_CONFIG.grid.colorGrid,
-        ]}
-      />
-
-      <GraphEdges />
-      <GraphNodes />
+      <group ref={groupRef} onPointerMissed={() => setSelectedNode(null)}>
+        <GraphEdges />
+        <GraphNodes />
+      </group>
     </>
   );
 }
