@@ -1,14 +1,10 @@
-import { useRef } from 'react';
 import { OrbitControls } from '@react-three/drei';
-import { SCENE_CONFIG } from '../lib/constants';
-import type { OrbitControls as OrbitControlsType } from 'three-stdlib';
+
+import { SCENE_CONFIG } from '@/lib/constants';
 
 export default function CameraController() {
-  const controlsRef = useRef<OrbitControlsType>(null);
-
   return (
     <OrbitControls
-      ref={controlsRef}
       enableDamping={SCENE_CONFIG.controls.enableDamping}
       dampingFactor={SCENE_CONFIG.controls.dampingFactor}
       rotateSpeed={SCENE_CONFIG.controls.rotateSpeed}

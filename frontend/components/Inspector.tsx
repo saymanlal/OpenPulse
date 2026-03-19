@@ -1,426 +1,164 @@
 'use client';
 
-import { useState, useMemo } from 'react';
-import { useGraphStore } from '@/stores/graphStore';
-import { NODE_COLORS } from '@/lib/constants';
-import type { NodeType } from '@/types/graph';
+import { useMemo } from 'react';
 
-type ViewMode = 'details' | 'search' | 'stats';
+import { NODE_COLORS } from '@/lib/constants';
+import { useGraphStore } from '@/stores/graphStore';
+
+function riskTone(value?: number) {
+  if (value === undefined) {
+    return { label: 'Unknown', color: 'bg-slate-500' };
+  }
+  if (value >= 0.7) {
+    return { label: 'High', color: 'bg-rose-500' };
+  }
+  if (value >= 0.4) {
+    return { label: 'Medium', color: 'bg-amber-400' };
+  }
+  return { label: 'Low', color: 'bg-emerald-400' };
+}
 
 export default function Inspector() {
-  const [isOpen, setIsOpen] = useState(true);
-  const [viewMode, setViewMode] = useState<ViewMode>('details');
-  const [searchQuery, setSearchQuery] = useState('');
-  const [typeFilter, setTypeFilter] = useState<NodeType | 'all'>('all');
-
   const nodes = useGraphStore((state) => state.nodes);
   const edges = useGraphStore((state) => state.edges);
   const selectedNodeId = useGraphStore((state) => state.selectedNodeId);
   const setSelectedNode = useGraphStore((state) => state.setSelectedNode);
 
-  const selectedNode = useMemo(() => {
-    return nodes.find((node) => node.id === selectedNodeId);
-  }, [nodes, selectedNodeId]);
+  const selectedNode = useMemo(
+    () => nodes.find((node) => node.id === selectedNodeId) ?? null,
+    [nodes, selectedNodeId],
+  );
 
-  const nodeConnections = useMemo(() => {
-    if (!selectedNode) return { incoming: [], outgoing: [] };
+  const nodeMetrics = useMemo(() => {
+    if (!selectedNode) {
+      return { incoming: 0, outgoing: 0, neighbors: [] as string[] };
+    }
 
-    const incoming = edges
-      .filter((edge) => edge.target === selectedNode.id)
-      .map((edge) => nodes.find((n) => n.id === edge.source))
-      .filter(Boolean);
+    const incoming = edges.filter((edge) => edge.target === selectedNode.id);
+    const outgoing = edges.filter((edge) => edge.source === selectedNode.id);
+    const neighbors = [...incoming.map((edge) => edge.source), ...outgoing.map((edge) => edge.target)];
+    return {
+      incoming: incoming.length,
+      outgoing: outgoing.length,
+      neighbors,
+    };
+  }, [edges, selectedNode]);
 
-    const outgoing = edges
-      .filter((edge) => edge.source === selectedNode.id)
-      .map((edge) => nodes.find((n) => n.id === edge.target))
-      .filter(Boolean);
-
-    return { incoming, outgoing };
-  }, [selectedNode, edges, nodes]);
-
-  const filteredNodes = useMemo(() => {
-    return nodes.filter((node) => {
-      const matchesSearch = 
-        searchQuery === '' ||
-        node.label.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        node.id.toLowerCase().includes(searchQuery.toLowerCase());
-
-      const matchesType = typeFilter === 'all' || node.type === typeFilter;
-
-      return matchesSearch && matchesType;
-    });
-  }, [nodes, searchQuery, typeFilter]);
-
-  const nodeTypeStats = useMemo(() => {
-    const stats = new Map<NodeType, number>();
-    nodes.forEach((node) => {
-      stats.set(node.type, (stats.get(node.type) || 0) + 1);
-    });
-    return stats;
-  }, [nodes]);
-
-  const graphStats = useMemo(() => {
-    const avgConnections = nodes.length > 0 
-      ? edges.length / nodes.length 
-      : 0;
-
-    const connectionCounts = nodes.map((node) => {
-      const incoming = edges.filter((e) => e.target === node.id).length;
-      const outgoing = edges.filter((e) => e.source === node.id).length;
-      return incoming + outgoing;
-    });
-
-    const maxConnections = Math.max(...connectionCounts, 0);
-    const hubNode = nodes[connectionCounts.indexOf(maxConnections)];
+  const summary = useMemo(() => {
+    const avgRisk =
+      nodes.length > 0
+        ? nodes.reduce((total, node) => total + (node.riskScore ?? 0), 0) / nodes.length
+        : 0;
 
     return {
-      avgConnections: avgConnections.toFixed(2),
-      maxConnections,
-      hubNode,
+      nodes: nodes.length,
+      edges: edges.length,
+      avgRisk,
     };
-  }, [nodes, edges]);
+  }, [edges.length, nodes]);
+
+  const tone = riskTone(selectedNode?.riskScore);
 
   return (
-    <div 
-      className={`fixed top-16 right-0 h-[calc(100vh-4rem)] bg-gray-900/95 backdrop-blur-sm border-l border-gray-800 transition-all duration-300 ${
-        isOpen ? 'w-80' : 'w-12'
-      }`}
-    >
-      <button
-        onClick={() => setIsOpen(!isOpen)}
-        className="absolute left-0 top-4 -translate-x-full bg-gray-800 hover:bg-gray-700 p-2 rounded-l transition-colors"
-        aria-label={isOpen ? 'Close inspector' : 'Open inspector'}
-      >
-        <svg 
-          className={`w-4 h-4 transition-transform ${isOpen ? 'rotate-0' : 'rotate-180'}`}
-          fill="none" 
-          stroke="currentColor" 
-          viewBox="0 0 24 24"
-        >
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-        </svg>
-      </button>
+    <aside className="flex h-full flex-col border-l border-slate-900 bg-slate-950/92 px-4 py-4 backdrop-blur-xl">
+      <div className="mb-4">
+        <h2 className="text-lg font-semibold text-slate-100">Node details</h2>
+        <p className="mt-1 text-sm text-slate-400">Click a node in the graph to inspect it.</p>
+      </div>
 
-      {isOpen && (
-        <div className="flex flex-col h-full">
-          {/* Header */}
-          <div className="p-4 border-b border-gray-800">
-            <h2 className="text-lg font-semibold text-gray-200 mb-3">Inspector</h2>
-            
-            {/* View Mode Tabs */}
-            <div className="flex gap-2">
-              <button
-                onClick={() => setViewMode('details')}
-                className={`flex-1 px-3 py-1.5 text-xs rounded transition-colors ${
-                  viewMode === 'details'
-                    ? 'bg-blue-600 text-white'
-                    : 'bg-gray-800 text-gray-400 hover:text-gray-200'
-                }`}
-              >
-                Details
-              </button>
-              <button
-                onClick={() => setViewMode('search')}
-                className={`flex-1 px-3 py-1.5 text-xs rounded transition-colors ${
-                  viewMode === 'search'
-                    ? 'bg-blue-600 text-white'
-                    : 'bg-gray-800 text-gray-400 hover:text-gray-200'
-                }`}
-              >
-                Search
-              </button>
-              <button
-                onClick={() => setViewMode('stats')}
-                className={`flex-1 px-3 py-1.5 text-xs rounded transition-colors ${
-                  viewMode === 'stats'
-                    ? 'bg-blue-600 text-white'
-                    : 'bg-gray-800 text-gray-400 hover:text-gray-200'
-                }`}
-              >
-                Stats
-              </button>
+      <div className="grid grid-cols-3 gap-2 text-center text-xs text-slate-300">
+        <div className="rounded-2xl border border-slate-800 bg-slate-900/70 p-3">
+          <div className="text-lg font-semibold text-white">{summary.nodes}</div>
+          <div>Nodes</div>
+        </div>
+        <div className="rounded-2xl border border-slate-800 bg-slate-900/70 p-3">
+          <div className="text-lg font-semibold text-white">{summary.edges}</div>
+          <div>Edges</div>
+        </div>
+        <div className="rounded-2xl border border-slate-800 bg-slate-900/70 p-3">
+          <div className="text-lg font-semibold text-white">{Math.round(summary.avgRisk * 100)}%</div>
+          <div>Avg risk</div>
+        </div>
+      </div>
+
+      {selectedNode ? (
+        <div className="mt-4 flex-1 rounded-3xl border border-slate-800 bg-slate-900/80 p-4 text-sm text-slate-300">
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <p className="text-xs uppercase tracking-[0.24em] text-slate-500">Selected</p>
+              <h3 className="mt-1 break-all text-base font-semibold text-slate-100">{selectedNode.label}</h3>
+            </div>
+            <button
+              type="button"
+              className="rounded-full border border-slate-700 px-3 py-1 text-xs text-slate-300 hover:border-slate-500 hover:text-white"
+              onClick={() => setSelectedNode(null)}
+            >
+              Clear
+            </button>
+          </div>
+
+          <div className="mt-4 flex items-center gap-2">
+            <span
+              className="h-3 w-3 rounded-full"
+              style={{ backgroundColor: NODE_COLORS[selectedNode.type] }}
+            />
+            <span className="capitalize text-slate-200">{selectedNode.type}</span>
+            <span className={`ml-auto h-2.5 w-2.5 rounded-full ${tone.color}`} />
+            <span>{tone.label}</span>
+          </div>
+
+          <div className="mt-4 space-y-3 rounded-2xl border border-slate-800 bg-slate-950/70 p-3">
+            <div className="flex items-center justify-between">
+              <span className="text-slate-500">Risk score</span>
+              <span className="font-medium text-slate-100">{Math.round((selectedNode.riskScore ?? 0) * 100)}%</span>
+            </div>
+            <div className="h-2 overflow-hidden rounded-full bg-slate-800">
+              <div
+                className={`h-full ${tone.color}`}
+                style={{ width: `${Math.round((selectedNode.riskScore ?? 0) * 100)}%` }}
+              />
+            </div>
+            <div className="flex items-center justify-between text-xs text-slate-400">
+              <span>Incoming {nodeMetrics.incoming}</span>
+              <span>Outgoing {nodeMetrics.outgoing}</span>
             </div>
           </div>
 
-          {/* Content */}
-          <div className="flex-1 overflow-y-auto p-4">
-            {/* Details View */}
-            {viewMode === 'details' && (
-              <div className="space-y-4">
-                {selectedNode ? (
-                  <>
-                    <div className="bg-gray-800/50 rounded p-4">
-                      <div className="flex items-center justify-between mb-3">
-                        <h3 className="text-sm font-medium text-gray-200">Selected Node</h3>
-                        <button
-                          onClick={() => setSelectedNode(null)}
-                          className="text-xs text-gray-400 hover:text-gray-200"
-                        >
-                          Clear
-                        </button>
-                      </div>
-                      
-                      <div className="space-y-2 text-sm">
-                        <div>
-                          <span className="text-gray-400">ID:</span>
-                          <span className="ml-2 text-gray-200 font-mono text-xs">{selectedNode.id}</span>
-                        </div>
-                        <div>
-                          <span className="text-gray-400">Label:</span>
-                          <span className="ml-2 text-gray-200">{selectedNode.label}</span>
-                        </div>
-                        <div className="flex items-center">
-                          <span className="text-gray-400">Type:</span>
-                          <span className="ml-2 capitalize text-gray-200">{selectedNode.type}</span>
-                          <div 
-                            className="ml-2 w-3 h-3 rounded-full"
-                            style={{ backgroundColor: NODE_COLORS[selectedNode.type] }}
-                          />
-                        </div>
-                        {selectedNode.riskScore !== undefined && (
-                          <div>
-                            <span className="text-gray-400">Risk Score:</span>
-                            <span className="ml-2 text-gray-200">
-                              {(selectedNode.riskScore * 100).toFixed(0)}%
-                            </span>
-                            <div className="mt-1 w-full bg-gray-700 rounded-full h-2">
-                              <div
-                                className="h-2 rounded-full transition-all"
-                                style={{
-                                  width: `${selectedNode.riskScore * 100}%`,
-                                  backgroundColor: selectedNode.riskScore > 0.7 ? '#ef4444' : 
-                                                   selectedNode.riskScore > 0.4 ? '#f59e0b' : '#10b981'
-                                }}
-                              />
-                            </div>
-                          </div>
-                        )}
-                        {selectedNode.metadata && (
-                          <div className="pt-2 border-t border-gray-700">
-                            <span className="text-gray-400 text-xs">Metadata:</span>
-                            <div className="mt-1 space-y-1 text-xs">
-                              {Object.entries(selectedNode.metadata).map(([key, value]) => (
-                                <div key={key} className="flex justify-between">
-                                  <span className="text-gray-500">{key}:</span>
-                                  <span className="text-gray-300 font-mono truncate ml-2">
-                                    {typeof value === 'string' ? value : JSON.stringify(value)}
-                                  </span>
-                                </div>
-                              ))}
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-
-                    <div className="border-t border-gray-800 pt-4">
-                      <h3 className="text-sm font-medium text-gray-300 mb-2">Connections</h3>
-                      <div className="space-y-2 text-sm">
-                        <div className="flex justify-between text-gray-400">
-                          <span>Incoming:</span>
-                          <span className="text-gray-200 font-mono">{nodeConnections.incoming.length}</span>
-                        </div>
-                        <div className="flex justify-between text-gray-400">
-                          <span>Outgoing:</span>
-                          <span className="text-gray-200 font-mono">{nodeConnections.outgoing.length}</span>
-                        </div>
-                        <div className="flex justify-between text-gray-400">
-                          <span>Total:</span>
-                          <span className="text-gray-200 font-mono font-bold">
-                            {nodeConnections.incoming.length + nodeConnections.outgoing.length}
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-
-                    {(nodeConnections.incoming.length > 0 || nodeConnections.outgoing.length > 0) && (
-                      <div className="border-t border-gray-800 pt-4">
-                        <h3 className="text-sm font-medium text-gray-300 mb-2">Connected Nodes</h3>
-                        <div className="space-y-2 text-xs max-h-40 overflow-y-auto">
-                          {nodeConnections.incoming.map((node) => (
-                            <div 
-                              key={node!.id} 
-                              className="flex items-center gap-2 text-gray-400 hover:text-gray-200 cursor-pointer p-1 hover:bg-gray-800/50 rounded"
-                              onClick={() => setSelectedNode(node!.id)}
-                            >
-                              <div 
-                                className="w-2 h-2 rounded-full flex-shrink-0"
-                                style={{ backgroundColor: NODE_COLORS[node!.type] }}
-                              />
-                              <span>← {node!.label}</span>
-                            </div>
-                          ))}
-                          {nodeConnections.outgoing.map((node) => (
-                            <div 
-                              key={node!.id} 
-                              className="flex items-center gap-2 text-gray-400 hover:text-gray-200 cursor-pointer p-1 hover:bg-gray-800/50 rounded"
-                              onClick={() => setSelectedNode(node!.id)}
-                            >
-                              <div 
-                                className="w-2 h-2 rounded-full flex-shrink-0"
-                                style={{ backgroundColor: NODE_COLORS[node!.type] }}
-                              />
-                              <span>→ {node!.label}</span>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-                  </>
-                ) : (
-                  <div className="text-sm text-gray-400 bg-gray-800/50 rounded p-4 text-center">
-                    Click a node to view details
-                  </div>
-                )}
-              </div>
-            )}
-
-            {/* Search View */}
-            {viewMode === 'search' && (
-              <div className="space-y-4">
-                <div>
-                  <input
-                    type="text"
-                    placeholder="Search nodes..."
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded text-sm text-gray-200 placeholder-gray-500 focus:outline-none focus:border-blue-500"
-                  />
+          <div className="mt-4 rounded-2xl border border-slate-800 bg-slate-950/70 p-3">
+            <p className="text-xs uppercase tracking-[0.24em] text-slate-500">Metadata</p>
+            <div className="mt-2 space-y-2 text-xs text-slate-300">
+              {Object.entries(selectedNode.metadata ?? {}).map(([key, value]) => (
+                <div className="flex items-center justify-between gap-3" key={key}>
+                  <span className="text-slate-500">{key}</span>
+                  <span className="truncate font-mono text-slate-200">
+                    {typeof value === 'string' ? value : JSON.stringify(value)}
+                  </span>
                 </div>
+              ))}
+            </div>
+          </div>
 
-                <div>
-                  <label className="text-xs text-gray-400 mb-2 block">Filter by Type</label>
-                  <select
-                    value={typeFilter}
-                    onChange={(e) => setTypeFilter(e.target.value as NodeType | 'all')}
-                    className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded text-sm text-gray-200 focus:outline-none focus:border-blue-500"
-                  >
-                    <option value="all">All Types</option>
-                    <option value="service">Service</option>
-                    <option value="library">Library</option>
-                    <option value="repository">Repository</option>
-                    <option value="database">Database</option>
-                    <option value="api">API</option>
-                    <option value="server">Server</option>
-                  </select>
-                </div>
-
-                <div className="text-xs text-gray-400 mb-2">
-                  Found {filteredNodes.length} node{filteredNodes.length !== 1 ? 's' : ''}
-                </div>
-
-                <div className="space-y-1 max-h-[400px] overflow-y-auto">
-                  {filteredNodes.map((node) => (
-                    <div
-                      key={node.id}
-                      onClick={() => {
-                        setSelectedNode(node.id);
-                        setViewMode('details');
-                      }}
-                      className={`p-2 rounded cursor-pointer transition-colors ${
-                        node.id === selectedNodeId
-                          ? 'bg-blue-600/50 border border-blue-500'
-                          : 'bg-gray-800/50 hover:bg-gray-800 border border-transparent'
-                      }`}
-                    >
-                      <div className="flex items-center gap-2">
-                        <div
-                          className="w-3 h-3 rounded-full flex-shrink-0"
-                          style={{ backgroundColor: NODE_COLORS[node.type] }}
-                        />
-                        <div className="flex-1 min-w-0">
-                          <div className="text-sm text-gray-200 truncate">{node.label}</div>
-                          <div className="text-xs text-gray-500 font-mono truncate">{node.id}</div>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* Stats View */}
-            {viewMode === 'stats' && (
-              <div className="space-y-4">
-                <div className="bg-gray-800/50 rounded p-4">
-                  <h3 className="text-sm font-medium text-gray-200 mb-3">Graph Overview</h3>
-                  <div className="space-y-2 text-sm">
-                    <div className="flex justify-between text-gray-400">
-                      <span>Total Nodes:</span>
-                      <span className="text-gray-200 font-mono font-bold">{nodes.length}</span>
-                    </div>
-                    <div className="flex justify-between text-gray-400">
-                      <span>Total Edges:</span>
-                      <span className="text-gray-200 font-mono font-bold">{edges.length}</span>
-                    </div>
-                    <div className="flex justify-between text-gray-400">
-                      <span>Avg Connections:</span>
-                      <span className="text-gray-200 font-mono">{graphStats.avgConnections}</span>
-                    </div>
-                    <div className="flex justify-between text-gray-400">
-                      <span>Max Connections:</span>
-                      <span className="text-gray-200 font-mono">{graphStats.maxConnections}</span>
-                    </div>
-                    {graphStats.hubNode && (
-                      <div className="pt-2 border-t border-gray-700">
-                        <span className="text-gray-400">Hub Node:</span>
-                        <div 
-                          className="mt-1 text-sm text-gray-200 hover:text-white cursor-pointer"
-                          onClick={() => {
-                            setSelectedNode(graphStats.hubNode!.id);
-                            setViewMode('details');
-                          }}
-                        >
-                          {graphStats.hubNode.label}
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                </div>
-
-                <div className="border-t border-gray-800 pt-4">
-                  <h3 className="text-sm font-medium text-gray-300 mb-3">Node Type Distribution</h3>
-                  <div className="space-y-2">
-                    {Array.from(nodeTypeStats.entries())
-                      .sort((a, b) => b[1] - a[1])
-                      .map(([type, count]) => {
-                        const percentage = (count / nodes.length) * 100;
-                        return (
-                          <div key={type}>
-                            <div className="flex justify-between text-xs mb-1">
-                              <span className="capitalize text-gray-400">{type}</span>
-                              <span className="text-gray-300 font-mono">{count} ({percentage.toFixed(0)}%)</span>
-                            </div>
-                            <div className="w-full bg-gray-700 rounded-full h-2">
-                              <div
-                                className="h-2 rounded-full transition-all"
-                                style={{
-                                  width: `${percentage}%`,
-                                  backgroundColor: NODE_COLORS[type]
-                                }}
-                              />
-                            </div>
-                          </div>
-                        );
-                      })}
-                  </div>
-                </div>
-
-                <div className="border-t border-gray-800 pt-4">
-                  <h3 className="text-sm font-medium text-gray-300 mb-2">Controls</h3>
-                  <div className="text-xs text-gray-400 space-y-1">
-                    <p>• Drag to rotate camera</p>
-                    <p>• Scroll to zoom in/out</p>
-                    <p>• Right-click drag to pan</p>
-                    <p>• Click node to select</p>
-                    <p>• Hover to highlight</p>
-                  </div>
-                </div>
-              </div>
-            )}
+          <div className="mt-4 rounded-2xl border border-slate-800 bg-slate-950/70 p-3">
+            <p className="text-xs uppercase tracking-[0.24em] text-slate-500">Connected nodes</p>
+            <div className="mt-2 flex max-h-48 flex-col gap-2 overflow-y-auto text-xs text-slate-300">
+              {nodeMetrics.neighbors.map((neighborId) => (
+                <button
+                  type="button"
+                  key={neighborId}
+                  onClick={() => setSelectedNode(neighborId)}
+                  className="truncate rounded-xl border border-slate-800 px-3 py-2 text-left hover:border-slate-600 hover:bg-slate-900"
+                >
+                  {neighborId}
+                </button>
+              ))}
+            </div>
           </div>
         </div>
+      ) : (
+        <div className="mt-4 flex flex-1 items-center justify-center rounded-3xl border border-dashed border-slate-800 bg-slate-900/40 p-6 text-center text-sm text-slate-500">
+          Select a node to inspect package type, risk score, and graph connectivity.
+        </div>
       )}
-    </div>
+    </aside>
   );
 }

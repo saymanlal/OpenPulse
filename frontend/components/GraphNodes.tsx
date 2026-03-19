@@ -1,10 +1,14 @@
 'use client';
 
 import { useEffect, useMemo, useRef } from 'react';
-import { useFrame, ThreeEvent } from '@react-three/fiber';
+import { ThreeEvent, useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
-import { useGraphStore } from '@/stores/graphStore';
+
 import { NODE_COLORS, NODE_CONFIG } from '@/lib/constants';
+import { useGraphStore } from '@/stores/graphStore';
+
+const tempObject = new THREE.Object3D();
+const tempColor = new THREE.Color();
 
 export default function GraphNodes() {
   const nodes = useGraphStore((state) => state.nodes);
@@ -12,108 +16,110 @@ export default function GraphNodes() {
   const hoveredNodeId = useGraphStore((state) => state.hoveredNodeId);
   const setSelectedNode = useGraphStore((state) => state.setSelectedNode);
   const setHoveredNode = useGraphStore((state) => state.setHoveredNode);
-
   const meshRef = useRef<THREE.InstancedMesh>(null);
-  const tempObject = useMemo(() => new THREE.Object3D(), []);
-
-  const selectedRef = useRef<string | null>(null);
-  const hoveredRef = useRef<string | null>(null);
+  const nodeLookupRef = useRef(nodes);
+  const activeStateRef = useRef({ selectedNodeId, hoveredNodeId });
 
   useEffect(() => {
-    selectedRef.current = selectedNodeId;
-  }, [selectedNodeId]);
-
-  useEffect(() => {
-    hoveredRef.current = hoveredNodeId;
-  }, [hoveredNodeId]);
-
-  const colorArray = useMemo(() => {
-    const colors = new Float32Array(nodes.length * 3);
-
-    for (let i = 0; i < nodes.length; i += 1) {
-      const node = nodes[i];
-      const color = new THREE.Color(NODE_COLORS[node.type]);
-
-      colors[i * 3] = color.r;
-      colors[i * 3 + 1] = color.g;
-      colors[i * 3 + 2] = color.b;
-    }
-
-    return colors;
+    nodeLookupRef.current = nodes;
   }, [nodes]);
 
-  const updateInstanceMatrices = () => {
+  useEffect(() => {
+    activeStateRef.current = { selectedNodeId, hoveredNodeId };
+  }, [hoveredNodeId, selectedNodeId]);
+
+  const baseScales = useMemo(() => nodes.map((node) => NODE_CONFIG.baseSize * (node.size ?? 1)), [nodes]);
+
+  useEffect(() => {
     const mesh = meshRef.current;
-    if (!mesh) return;
-
-    for (let i = 0; i < nodes.length; i += 1) {
-      const node = nodes[i];
-      const isSelected = node.id === selectedRef.current;
-      const isHovered = node.id === hoveredRef.current;
-
-      const scale = isSelected
-        ? NODE_CONFIG.size * 1.5
-        : isHovered
-          ? NODE_CONFIG.size * 1.3
-          : NODE_CONFIG.size;
-
-      tempObject.position.set(node.position[0], node.position[1], node.position[2]);
-      tempObject.scale.setScalar(scale);
-      tempObject.updateMatrix();
-      mesh.setMatrixAt(i, tempObject.matrix);
+    if (!mesh) {
+      return;
     }
 
-    mesh.instanceMatrix.needsUpdate = true;
-  };
+    nodes.forEach((node, index) => {
+      tempObject.position.set(...node.position);
+      tempObject.scale.setScalar(baseScales[index]);
+      tempObject.updateMatrix();
+      mesh.setMatrixAt(index, tempObject.matrix);
+      mesh.setColorAt(index, tempColor.set(NODE_COLORS[node.type]));
+    });
 
-  useFrame(() => {
-    updateInstanceMatrices();
+    mesh.instanceMatrix.needsUpdate = true;
+    if (mesh.instanceColor) {
+      mesh.instanceColor.needsUpdate = true;
+    }
+  }, [baseScales, nodes]);
+
+  useFrame((state) => {
+    const mesh = meshRef.current;
+    if (!mesh) {
+      return;
+    }
+
+    const elapsed = state.clock.getElapsedTime();
+    const activeState = activeStateRef.current;
+
+    nodeLookupRef.current.forEach((node, index) => {
+      const baseScale = baseScales[index];
+      const isSelected = node.id === activeState.selectedNodeId;
+      const isHovered = node.id === activeState.hoveredNodeId;
+      const pulse = isSelected ? 1 + Math.sin(elapsed * 3.5) * 0.06 : isHovered ? 1.08 : 1;
+      const scale = baseScale * (isSelected ? NODE_CONFIG.selectedScale : isHovered ? NODE_CONFIG.hoverScale : 1) * pulse;
+
+      tempObject.position.set(...node.position);
+      tempObject.scale.setScalar(scale);
+      tempObject.updateMatrix();
+      mesh.setMatrixAt(index, tempObject.matrix);
+    });
+
+    mesh.instanceMatrix.needsUpdate = true;
   });
 
-  const handleClick = (event: ThreeEvent<MouseEvent>) => {
-    event.stopPropagation();
-
+  const getNodeFromEvent = (event: ThreeEvent<MouseEvent | PointerEvent>) => {
     const instanceId = event.instanceId;
-    if (instanceId === undefined || instanceId >= nodes.length) return;
-
-    const clickedNode = nodes[instanceId];
-    setSelectedNode(clickedNode.id === selectedNodeId ? null : clickedNode.id);
+    if (instanceId === undefined) {
+      return null;
+    }
+    return nodeLookupRef.current[instanceId] ?? null;
   };
 
-  const handlePointerOver = (event: ThreeEvent<PointerEvent>) => {
-    event.stopPropagation();
-
-    const instanceId = event.instanceId;
-    if (instanceId === undefined || instanceId >= nodes.length) return;
-
-    setHoveredNode(nodes[instanceId].id);
-    document.body.style.cursor = 'pointer';
-  };
-
-  const handlePointerOut = () => {
-    setHoveredNode(null);
-    document.body.style.cursor = 'default';
-  };
-
-  if (nodes.length === 0) return null;
+  if (nodes.length === 0) {
+    return null;
+  }
 
   return (
     <instancedMesh
       ref={meshRef}
       args={[undefined, undefined, nodes.length]}
-      onClick={handleClick}
-      onPointerOver={handlePointerOver}
-      onPointerOut={handlePointerOut}
+      onClick={(event) => {
+        event.stopPropagation();
+        const node = getNodeFromEvent(event);
+        if (!node) {
+          return;
+        }
+        setSelectedNode(node.id === selectedNodeId ? null : node.id);
+      }}
+      onPointerMove={(event) => {
+        event.stopPropagation();
+        const node = getNodeFromEvent(event);
+        if (!node) {
+          return;
+        }
+        setHoveredNode(node.id);
+        document.body.style.cursor = 'pointer';
+      }}
+      onPointerOut={() => {
+        setHoveredNode(null);
+        document.body.style.cursor = 'default';
+      }}
       frustumCulled={false}
     >
-      <sphereGeometry args={[1, NODE_CONFIG.segments, NODE_CONFIG.segments]}>
-        <instancedBufferAttribute attach="attributes-color" args={[colorArray, 3]} />
-      </sphereGeometry>
+      <sphereGeometry args={[1, NODE_CONFIG.segments, NODE_CONFIG.segments]} />
       <meshStandardMaterial
         vertexColors
         metalness={NODE_CONFIG.metalness}
         roughness={NODE_CONFIG.roughness}
-        emissive="#101010"
+        emissive="#08111f"
         emissiveIntensity={NODE_CONFIG.emissiveIntensity}
       />
     </instancedMesh>

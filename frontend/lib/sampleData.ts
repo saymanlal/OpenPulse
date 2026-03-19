@@ -1,19 +1,10 @@
-import type { GraphData, GraphNode, NodeType } from '@/types/graph';
+import type { GraphData, GraphEdge, GraphNode, NodeType } from '@/types/graph';
 
-const NODE_TYPES: NodeType[] = [
-  'service',
-  'library',
-  'repository',
-  'database',
-  'api',
-  'server',
-  'ip',
-  'threat',
-  'vulnerability',
-];
-
-const DEMO_STORAGE_KEY = 'openpulse-demo-graph-v1';
-const DEFAULT_DEMO_SEED = 15015;
+const NODE_TYPES: NodeType[] = ['library', 'api', 'service', 'database', 'server', 'repository'];
+const DEMO_STORAGE_KEY = 'openpulse-demo-graph-v2';
+const DEFAULT_DEMO_SEED = 16016;
+const DEMO_NODE_COUNT = 120;
+const CLUSTER_COUNT = 6;
 
 function createSeededRandom(seed: number): () => number {
   let state = seed >>> 0;
@@ -24,105 +15,96 @@ function createSeededRandom(seed: number): () => number {
   };
 }
 
-function pickNodeType(random: () => number): NodeType {
-  return NODE_TYPES[Math.floor(random() * NODE_TYPES.length)];
+function pickNodeType(random: () => number, clusterIndex: number): NodeType {
+  return NODE_TYPES[(clusterIndex + Math.floor(random() * NODE_TYPES.length)) % NODE_TYPES.length];
 }
 
-function randomPosition(random: () => number, radius: number): [number, number, number] {
+function createClusterCenter(clusterIndex: number): [number, number, number] {
+  const angle = (clusterIndex / CLUSTER_COUNT) * Math.PI * 2;
   return [
-    (random() - 0.5) * radius,
-    (random() - 0.5) * radius,
-    (random() - 0.5) * radius,
+    Number((Math.cos(angle) * 10).toFixed(2)),
+    Number((((clusterIndex % 3) - 1) * 3.6).toFixed(2)),
+    Number((Math.sin(angle) * 10).toFixed(2)),
   ];
 }
 
-export function generateSampleGraph(nodeCount: number = 20): GraphData {
-  const random = createSeededRandom(Date.now());
-  const nodes: GraphNode[] = [];
-  const edges: GraphData['edges'] = [];
-  const edgeSet = new Set<string>();
-
-  for (let i = 0; i < nodeCount; i++) {
-    nodes.push({
-      id: `node-${i}`,
-      label: `Node ${i}`,
-      type: pickNodeType(random),
-      position: randomPosition(random, 20),
-      riskScore: Number(random().toFixed(3)),
-      metadata: {
-        index: i,
-        generatedFor: 'manual-demo',
-      },
-    });
-  }
-
-  while (edges.length < Math.max(nodeCount, Math.floor(nodeCount * 2))) {
-    const sourceIndex = Math.floor(random() * nodeCount);
-    const targetIndex = Math.floor(random() * nodeCount);
-
-    if (sourceIndex === targetIndex) {
-      continue;
-    }
-
-    const edgeKey = `${sourceIndex}-${targetIndex}`;
-    if (edgeSet.has(edgeKey)) {
-      continue;
-    }
-
-    edgeSet.add(edgeKey);
-    edges.push({
-      id: `edge-${sourceIndex}-${targetIndex}`,
-      source: `node-${sourceIndex}`,
-      target: `node-${targetIndex}`,
-      weight: Number((0.2 + random() * 0.8).toFixed(3)),
-    });
-  }
-
-  return { nodes, edges };
+function createNode(
+  clusterIndex: number,
+  nodeIndex: number,
+  random: () => number,
+  center: [number, number, number],
+): GraphNode {
+  const angle = ((nodeIndex % 20) / 20) * Math.PI * 2;
+  const radius = 1.8 + random() * 2.8;
+  return {
+    id: clusterIndex === 0 && nodeIndex === 0 ? 'demo/repository' : `pkg-${clusterIndex}-${nodeIndex}`,
+    label: clusterIndex === 0 && nodeIndex === 0 ? 'demo/repository' : `pkg-${clusterIndex}-${nodeIndex}`,
+    type: clusterIndex === 0 && nodeIndex === 0 ? 'repository' : pickNodeType(random, clusterIndex),
+    position: [
+      Number((center[0] + Math.cos(angle) * radius).toFixed(2)),
+      Number((center[1] + (random() - 0.5) * 2.5).toFixed(2)),
+      Number((center[2] + Math.sin(angle) * radius).toFixed(2)),
+    ],
+    riskScore: Number((0.18 + random() * 0.68).toFixed(2)),
+    size: Number((1 + random() * 1.2).toFixed(2)),
+    metadata: {
+      cluster: clusterIndex,
+      source: 'demo',
+    },
+  };
 }
 
 export function generateDemoDataset(seed: number = DEFAULT_DEMO_SEED): GraphData {
-  const nodeCount = 200;
-  const edgeCount = 400;
   const random = createSeededRandom(seed);
   const nodes: GraphNode[] = [];
-  const edges: GraphData['edges'] = [];
-  const edgeSet = new Set<string>();
+  const edges: GraphEdge[] = [];
+  const clusterRoots: string[] = [];
 
-  for (let i = 0; i < nodeCount; i++) {
-    nodes.push({
-      id: `node-${i}`,
-      label: `Node ${i}`,
-      type: pickNodeType(random),
-      position: randomPosition(random, 30),
-      riskScore: Number(random().toFixed(3)),
-      metadata: {
-        index: i,
-        generatedAt: 'phase-15',
-      },
-    });
+  const nodesPerCluster = Math.floor(DEMO_NODE_COUNT / CLUSTER_COUNT);
+
+  for (let clusterIndex = 0; clusterIndex < CLUSTER_COUNT; clusterIndex += 1) {
+    const center = createClusterCenter(clusterIndex);
+    for (let nodeIndex = 0; nodeIndex < nodesPerCluster; nodeIndex += 1) {
+      const node = createNode(clusterIndex, nodeIndex, random, center);
+      nodes.push(node);
+      if (nodeIndex === 0) {
+        clusterRoots.push(node.id);
+      }
+    }
   }
 
-  while (edges.length < edgeCount) {
-    const sourceIndex = Math.floor(random() * nodeCount);
-    const targetIndex = Math.floor(random() * nodeCount);
-
-    if (sourceIndex === targetIndex) {
-      continue;
-    }
-
-    const edgeKey = `${sourceIndex}-${targetIndex}`;
-    if (edgeSet.has(edgeKey)) {
-      continue;
-    }
-
-    edgeSet.add(edgeKey);
+  clusterRoots.slice(1).forEach((targetId, index) => {
     edges.push({
-      id: `edge-${edges.length}`,
-      source: `node-${sourceIndex}`,
-      target: `node-${targetIndex}`,
-      weight: Number((0.1 + random() * 0.9).toFixed(3)),
+      id: `backbone-${index}`,
+      source: clusterRoots[0],
+      target: targetId,
+      weight: 1,
     });
+  });
+
+  for (let clusterIndex = 0; clusterIndex < CLUSTER_COUNT; clusterIndex += 1) {
+    const clusterNodes = nodes.slice(clusterIndex * nodesPerCluster, (clusterIndex + 1) * nodesPerCluster);
+    const rootId = clusterNodes[0].id;
+
+    for (let index = 1; index < clusterNodes.length; index += 1) {
+      const current = clusterNodes[index];
+      const parent = clusterNodes[Math.max(0, index - 1 - (index % 3))];
+      edges.push({
+        id: `cluster-${clusterIndex}-${index}`,
+        source: index % 4 === 0 ? rootId : parent.id,
+        target: current.id,
+        weight: 1,
+      });
+    }
+
+    for (let index = 2; index < clusterNodes.length; index += 5) {
+      edges.push({
+        id: `cross-${clusterIndex}-${index}`,
+        source: clusterNodes[index - 2].id,
+        target: clusterNodes[index].id,
+        weight: 0.6,
+      });
+    }
   }
 
   return { nodes, edges };
@@ -137,12 +119,12 @@ export function getOrCreateDemoDataset(): GraphData {
     const stored = window.localStorage.getItem(DEMO_STORAGE_KEY);
     if (stored) {
       const parsed = JSON.parse(stored) as GraphData;
-      if (parsed.nodes?.length === 200 && parsed.edges?.length === 400) {
+      if (parsed.nodes?.length >= 100 && parsed.nodes?.length <= 150) {
         return parsed;
       }
     }
   } catch {
-    // ignore malformed cache and regenerate
+    // Ignore malformed cache and regenerate.
   }
 
   const generated = generateDemoDataset();
@@ -156,30 +138,4 @@ export function persistDemoDataset(data: GraphData): void {
   }
 
   window.localStorage.setItem(DEMO_STORAGE_KEY, JSON.stringify(data));
-}
-
-export function evolveDemoDataset(current: GraphData): GraphData {
-  const nodes = current.nodes.map((node, index) => {
-    if (index % 6 !== 0) {
-      return node;
-    }
-
-    const [x, y, z] = node.position;
-    const jitter = 0.35;
-    const nextRisk = node.riskScore ?? 0.5;
-
-    return {
-      ...node,
-      position: [
-        Number((x + (Math.random() - 0.5) * jitter).toFixed(3)),
-        Number((y + (Math.random() - 0.5) * jitter).toFixed(3)),
-        Number((z + (Math.random() - 0.5) * jitter).toFixed(3)),
-      ],
-      riskScore: Number(
-        Math.min(1, Math.max(0, nextRisk + (Math.random() - 0.5) * 0.06)).toFixed(3)
-      ),
-    };
-  });
-
-  return { nodes, edges: current.edges };
 }

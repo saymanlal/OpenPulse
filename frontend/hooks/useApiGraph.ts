@@ -1,80 +1,83 @@
-import { useState, useEffect } from 'react';
-import { apiClient, type GraphData } from '@/services/api';
+import { useCallback, useState } from 'react';
+
+import { normalizeAnalyzerGraph } from '@/lib/graphLayout';
+import { getOrCreateDemoDataset, persistDemoDataset } from '@/lib/sampleData';
+import { apiClient } from '@/services/api';
 import { useGraphStore } from '@/stores/graphStore';
+import type { GraphData } from '@/types/graph';
 
-export function useLoadGraphFromApi() {
+const LOADING_STEPS = ['Fetching repository...', 'Building graph...', 'Rendering...'] as const;
+
+export function useRepositoryAnalysis() {
   const [loading, setLoading] = useState(false);
+  const [status, setStatus] = useState<string>('Ready');
   const [error, setError] = useState<string | null>(null);
-  const setNodes = useGraphStore((state) => state.setNodes);
-  const setEdges = useGraphStore((state) => state.setEdges);
+  const [source, setSource] = useState<'github' | 'demo'>('demo');
+  const setGraphData = useGraphStore((state) => state.setGraphData);
 
-  const loadGraph = async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const data = await apiClient.getGraphData();
-      setNodes(data.nodes);
-      setEdges(data.edges);
-      return data;
-    } catch (err) {
-      const message = err instanceof Error ? err.message : 'Failed to load graph';
-      setError(message);
-      throw err;
-    } finally {
-      setLoading(false);
-    }
+  const loadDemoGraph = useCallback((): GraphData => {
+    const demo = getOrCreateDemoDataset();
+    persistDemoDataset(demo);
+    setGraphData(demo);
+    setSource('demo');
+    setStatus('Rendering...');
+    return demo;
+  }, [setGraphData]);
+
+  const analyzeRepository = useCallback(
+    async (repo: string) => {
+      const trimmedRepo = repo.trim();
+      if (!trimmedRepo) {
+        throw new Error('Enter a repository in owner/name format');
+      }
+
+      setLoading(true);
+      setError(null);
+      setSource('github');
+      setStatus(LOADING_STEPS[0]);
+
+      try {
+        const payload = await apiClient.analyzeRepository(trimmedRepo);
+        setStatus(LOADING_STEPS[1]);
+        const graph = normalizeAnalyzerGraph(payload);
+        setStatus(LOADING_STEPS[2]);
+        setGraphData(graph);
+        return graph;
+      } catch (analysisError) {
+        const message = analysisError instanceof Error ? analysisError.message : 'Analysis failed';
+        setError(message);
+        const demo = loadDemoGraph();
+        setStatus(`${message} Loading demo dataset instead.`);
+        return demo;
+      } finally {
+        setLoading(false);
+      }
+    },
+    [loadDemoGraph, setGraphData],
+  );
+
+  return {
+    analyzeRepository,
+    loadDemoGraph,
+    loading,
+    status,
+    error,
+    source,
+    loadingSteps: LOADING_STEPS,
   };
-
-  return { loadGraph, loading, error };
-}
-
-export function useSaveGraphToApi() {
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const nodes = useGraphStore((state) => state.nodes);
-  const edges = useGraphStore((state) => state.edges);
-
-  const saveGraph = async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const data: GraphData = { nodes, edges };
-      const result = await apiClient.createGraphData(data);
-      return result;
-    } catch (err) {
-      const message = err instanceof Error ? err.message : 'Failed to save graph';
-      setError(message);
-      throw err;
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  return { saveGraph, loading, error };
 }
 
 export function useApiConnection() {
-  const [connected, setConnected] = useState(false);
-  const [checking, setChecking] = useState(true);
+  const [connected, setConnected] = useState<boolean | null>(null);
 
-  useEffect(() => {
-    const checkConnection = async () => {
-      try {
-        await apiClient.health();
-        setConnected(true);
-      } catch (err) {
-        setConnected(false);
-      } finally {
-        setChecking(false);
-      }
-    };
-
-    checkConnection();
-    
-    // Re-check every 30 seconds
-    const interval = setInterval(checkConnection, 30000);
-    return () => clearInterval(interval);
+  const checkConnection = useCallback(async () => {
+    try {
+      await apiClient.health();
+      setConnected(true);
+    } catch {
+      setConnected(false);
+    }
   }, []);
 
-  return { connected, checking };
+  return { connected, checkConnection };
 }
