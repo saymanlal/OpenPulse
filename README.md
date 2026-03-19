@@ -1,281 +1,150 @@
-# OpenPulse 🌍
+# OpenPulse
 
-**OpenPulse** is an open-source 3D dependency health visualizer that exposes structural fragility in software projects.
+OpenPulse is a deployable dependency-graph explorer for public GitHub repositories. Enter a repository in `owner/name` format, let the FastAPI backend fetch its `package.json`, and inspect the resulting dependency graph in a performant 3D scene built with Next.js, react-three-fiber, and Three.js.
 
-Modern applications rely on deep and complex dependency chains. While vulnerability scanners detect known issues, they do not reveal structural ecosystem risk such as centrality, maintainer concentration, or inactivity patterns.
+## Problem statement
 
-OpenPulse makes dependency risk visible.
+Dependency trees are easy to generate but hard to understand. Flat package lists hide which repositories are pulling in many direct dependencies, which packages look riskier than others, and how a project is structurally organized. OpenPulse turns that package list into an interactive graph that is quick enough for live demos and simple enough to deploy on Vercel and Render.
 
----
+## Features
 
-## Table of Contents
+- Analyze a public GitHub repository through `GET /analyze?repo=owner/name`.
+- Fetch repository metadata and decode the root `package.json` through the GitHub API.
+- Extract direct dependencies only and cap the graph to 120 nodes for smooth rendering.
+- Compute deterministic pseudo-random risk scores from package names.
+- Fall back to a deterministic clustered demo dataset when analysis fails.
+- Render nodes with `THREE.InstancedMesh` and edges with `LineSegments`.
+- Inspect node details, risk, and connectivity from the side panel.
+- Ship with CORS, health checks, env examples, and deployment-ready defaults.
 
-* [Problem](#problem)
-* [Solution Overview](#solution-overview)
-* [Core Features](#core-features)
-* [System Architecture](#system-architecture)
-* [Risk Model](#risk-model)
-* [Why 3D Visualization?](#why-3d-visualization)
-* [Tech Stack](#tech-stack)
-* [Use Case Example](#use-case-example)
-* [Roadmap](#roadmap)
-* [License](#license)
+## Architecture
 
----
+### Backend
 
-## Problem
+- **FastAPI** serves `/analyze`, `/health`, and the legacy `/api/graph/*` routes.
+- **GitHub analyzer service** fetches repository metadata and `package.json` using async `httpx` requests.
+- **Risk scoring** hashes each package name to create a stable risk score from `0.12` to `0.88`.
+- **Graph payload** returns compact graph JSON:
 
-Open-source software powers critical infrastructure across the world. However:
-
-* Projects depend on deeply nested transitive packages.
-* Critical libraries may have very few maintainers.
-* Some central dependencies are inactive.
-* Structural fragility is invisible until failure occurs.
-* 2D dependency trees become unreadable at scale.
-
-Developers lack intuitive insight into:
-
-* Which dependency is most critical.
-* What breaks if a package disappears.
-* Where ecosystem risk is concentrated.
-* How dependency depth affects stability.
-
-OpenPulse addresses this visibility gap.
-
----
-
-## Solution Overview
-
-OpenPulse provides:
-
-1. Automated dependency extraction from a GitHub repository.
-2. Graph-based structural analysis.
-3. Composite dependency risk scoring.
-4. Interactive 3D visualization.
-5. Structural collapse simulation.
-
-The system focuses on structural ecosystem health, not vulnerability scanning.
-
----
-
-## Core Features
-
-* GitHub repository input
-* npm dependency parsing (initial scope)
-* Depth-limited dependency graph (2 levels)
-* Centrality computation
-* Maintainer and activity metadata analysis
-* Composite structural risk score
-* Interactive 3D dependency network
-* Node inspection panel
-* Dependency removal simulation
-
----
-
-## System Architecture
-
-### High-Level Flow
-
-```mermaid
-flowchart TD
-    A[User Inputs GitHub Repository URL] --> B[Backend API - FastAPI]
-    B --> C[Extract package.json]
-    C --> D[Fetch Dependency Metadata]
-    D --> E[Construct Dependency Graph - NetworkX]
-    E --> F[Compute Centrality Metrics]
-    F --> G[Calculate Risk Score]
-    G --> H[Return Graph JSON]
-    H --> I[Frontend 3D Rendering - Three.js]
+```json
+{
+  "nodes": [{ "id": "facebook/react", "type": "repository", "risk": 0.12, "size": 2.6 }],
+  "edges": [{ "source": "facebook/react", "target": "scheduler" }]
+}
 ```
 
----
+### Frontend
 
-### Component Breakdown
+- **Next.js App Router** hosts the dashboard shell.
+- **Zustand** stores the graph and node selection state.
+- **react-three-fiber** renders the scene.
+- **Three.js** powers instanced spheres, line segments, orbit controls, and fog.
+- **Graph normalization** converts backend graph payloads into clustered 3D positions for smooth exploration.
 
-**Input Layer**
+## Local development
 
-* Accepts public GitHub repository URL.
-* Extracts dependency file.
+### Prerequisites
 
-**Data Enrichment**
+- Node.js 18+
+- Python 3.11+
 
-* npm registry API for dependency metadata.
-* GitHub API for:
+### Backend
 
-  * Last commit date
-  * Contributor count
-  * Issue statistics
-
-**Graph Engine**
-
-* Directed dependency graph.
-* Centrality metrics:
-
-  * Degree centrality
-  * Betweenness centrality
-* Dependency depth mapping.
-
-**Risk Engine**
-
-* Composite structural risk scoring model.
-
-**Visualization Layer**
-
-* Force-directed 3D layout.
-* Node size proportional to centrality.
-* Node color mapped to risk.
-* Interactive camera and node inspection.
-
----
-
-## Risk Model
-
-Risk Score (0–100) is computed using:
-
-```
-Risk =
-    (0.4 × Centrality Score) +
-    (0.3 × Inactivity Score) +
-    (0.2 × Maintainer Scarcity Score) +
-    (0.1 × Dependency Depth Factor)
+```bash
+cd backend
+python -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+cp .env.example .env
+uvicorn main:app --host 0.0.0.0 --port 8000 --reload
 ```
 
-This model identifies structurally fragile dependencies within a project.
+### Frontend
 
-OpenPulse does not replace security audit tools. It highlights architectural fragility.
+```bash
+cd frontend
+npm install
+cp .env.local.example .env.local
+npm run dev
+```
 
----
+Open `http://localhost:3000`, enter a repository such as `facebook/react`, and click **Analyze**.
 
-## Why 3D Visualization?
+## Demo usage
 
-Large dependency graphs suffer from edge overlap and cluster congestion in 2D.
+1. Start the backend and frontend.
+2. Open the homepage.
+3. Enter `facebook/react`.
+4. Click **Analyze**.
+5. Wait for the staged loading messages:
+   - `Fetching repository...`
+   - `Building graph...`
+   - `Rendering...`
+6. Drag to orbit, scroll to zoom, and click a node to inspect its details.
+7. If GitHub analysis fails, use **Load Demo** or let the automatic fallback graph render.
 
-3D enables:
+## Deployment
 
-* Spatial cluster separation
-* Improved structural clarity
-* Interactive dependency exploration
-* Better perception of centrality
+### Frontend on Vercel
 
-The visualization enhances comprehension rather than acting as decoration.
+1. Import the `frontend` directory as a Vercel project.
+2. Set the build command to `npm run build` and output defaults for Next.js.
+3. Add an environment variable:
+   - `NEXT_PUBLIC_API_URL=https://<your-render-service>.onrender.com`
+4. Deploy.
 
----
+### Backend on Render
 
-## Tech Stack
+1. Create a new Web Service pointing at the `backend` directory.
+2. Use the start command:
 
-**Frontend**
+```bash
+uvicorn main:app --host 0.0.0.0 --port $PORT
+```
 
-* React
-* Three.js
-* WebGL
+3. Add environment variables:
+   - `FRONTEND_URL=https://<your-vercel-app>.vercel.app`
+   - `CORS_ORIGINS=https://<your-vercel-app>.vercel.app`
+   - `GITHUB_TOKEN=<optional but recommended for higher rate limits>`
+   - `MAX_GRAPH_NODES=120`
+4. Deploy and verify `GET /health`.
 
-**Backend**
+## Environment variables
 
-* FastAPI
-* NetworkX
-* npm Registry API
-* GitHub REST API
+### Backend
 
-**Deployment**
+- `API_HOST`
+- `API_PORT`
+- `FRONTEND_URL`
+- `CORS_ORIGINS`
+- `GITHUB_TOKEN`
+- `GITHUB_API_BASE`
+- `REQUEST_TIMEOUT`
+- `MAX_GRAPH_NODES`
+- `DATABASE_URL`
+- `DATABASE_ECHO`
 
-* Frontend: Vercel
-* Backend: Render (free tier)
+### Frontend
 
-**License**
+- `NEXT_PUBLIC_API_URL`
 
-* MIT
+## Error handling
 
----
+The analyzer explicitly returns useful API errors for:
 
-## Use Case Example
+- invalid repository format
+- repository not found
+- missing `package.json`
+- GitHub API rate limits
+- invalid `package.json` content
+- repositories with zero direct dependencies
 
-1. Developer submits a repository URL.
-2. OpenPulse generates a dependency network.
-3. A central node appears in red.
-4. Inspection reveals:
+## Demo dataset generator
 
-   * Single maintainer
-   * Low recent activity
-   * High structural centrality
-5. Developer understands ecosystem fragility before failure occurs.
+Regenerate the bundled demo dataset at any time:
 
----
+```bash
+python scripts/demo_data_generator.py
+```
 
-## Roadmap
-
-**Phase 1 (Hackathon Scope)**
-
-* npm support only
-* Depth-limited graph
-* Structural risk scoring
-* Interactive 3D rendering
-
-**Future Expansion**
-
-* Python ecosystem support
-* GitHub App integration
-* CI/CD pipeline analysis
-* Historical dependency evolution tracking
-
----
-
-## License
-
-This project is licensed under the Apache-2.0 License.
-
----
-
-## Footer
-
-OpenPulse
-Structural Visibility for Open-Source Ecosystems
-
-Built for open collaboration and ecosystem transparency.
-
-## Phase 14 - Performance Optimization
-
-Phase 14 focuses on large-graph rendering stability and frame consistency.
-
-### Optimizations Delivered
-
-- Instanced mesh node rendering retained and tuned for lower geometry complexity.
-- Edge rendering consolidated into a single `lineSegments` draw call to reduce object count.
-- Force simulation updates are now batched in Zustand to prevent per-node state churn.
-- Scene bootstrap now targets a 200-node fallback dataset to validate performance goals.
-- Simulation tick cadence is throttled for smoother frame pacing under heavier graphs.
-
-### Phase 14 Validation
-
-1. Start backend:
-   - `cd backend && uvicorn main:app --reload --port 8000`
-2. Start frontend:
-   - `cd frontend && npm install && npm run dev`
-3. Open `http://localhost:3000`.
-4. If backend is unavailable, the app auto-loads a 200-node demo graph.
-5. Interact with orbit controls and inspect hover/click node behavior.
-
-Expected result: smooth navigation and interaction on a graph at or above 200 nodes without frame stutter on a modern laptop GPU.
-
-## Phase 15 - Demo Dataset Generator
-
-Phase 15 introduces a deterministic dataset pipeline for large-graph demos and a real-time fallback experience when the backend is offline.
-
-### Deliverables
-
-- Added `scripts/demo_data_generator.py` to generate exactly **200 nodes** and **400 edges**.
-- Generator output is saved to `docs/demo_dataset.json` for reproducible local demos.
-- Frontend fallback now loads a persistent 200/400 dataset automatically if API loading fails.
-- Demo fallback evolution now updates in real time every ~2.5 seconds (without requiring page reload).
-- Demo graph state is cached in local storage, so refreshing the page no longer regenerates a new random graph.
-
-### How to Test Phase 15
-
-1. Generate demo dataset:
-   - `python3 scripts/demo_data_generator.py`
-2. Start frontend:
-   - `cd frontend && npm install && npm run dev`
-3. Optionally keep backend offline to force demo fallback mode.
-4. Open `http://localhost:3000` and confirm:
-   - Graph loads with 200 nodes / 400 edges.
-   - Node risk/position jitter updates automatically every ~2.5 seconds.
-   - Refreshing the page keeps the same dataset baseline rather than creating a new random graph.
+This produces `docs/demo_dataset.json` with a 120-node clustered graph compatible with the frontend renderer.

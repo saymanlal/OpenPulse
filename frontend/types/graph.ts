@@ -1,12 +1,12 @@
-export type NodeType = 
-  | 'service' 
-  | 'library' 
-  | 'repository' 
-  | 'database' 
-  | 'api' 
-  | 'server' 
-  | 'ip' 
-  | 'threat' 
+export type NodeType =
+  | 'service'
+  | 'library'
+  | 'repository'
+  | 'database'
+  | 'api'
+  | 'server'
+  | 'ip'
+  | 'threat'
   | 'vulnerability';
 
 export interface GraphNode {
@@ -14,8 +14,9 @@ export interface GraphNode {
   label: string;
   type: NodeType;
   position: [number, number, number];
-  metadata?: Record<string, any>;
+  metadata?: Record<string, unknown>;
   riskScore?: number;
+  size?: number;
 }
 
 export interface GraphEdge {
@@ -29,6 +30,23 @@ export interface GraphEdge {
 export interface GraphData {
   nodes: GraphNode[];
   edges: GraphEdge[];
+}
+
+export interface AnalyzerNode {
+  id: string;
+  type: NodeType;
+  risk: number;
+  size: number;
+}
+
+export interface AnalyzerEdge {
+  source: string;
+  target: string;
+}
+
+export interface AnalyzerGraphData {
+  nodes: AnalyzerNode[];
+  edges: AnalyzerEdge[];
 }
 
 export interface SelectedNode extends GraphNode {

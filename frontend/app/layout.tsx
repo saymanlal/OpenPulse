@@ -1,19 +1,16 @@
-import type { Metadata } from 'next'
-import './globals.css'
+import type { Metadata } from 'next';
+
+import './globals.css';
 
 export const metadata: Metadata = {
-  title: 'OpenPulse - 3D Intelligence Platform',
-  description: 'Interactive 3D visualization of complex system relationships',
-}
+  title: 'OpenPulse',
+  description: 'Analyze a GitHub repository and inspect its dependency graph in a responsive 3D view.',
+};
 
-export default function RootLayout({
-  children,
-}: {
-  children: React.ReactNode
-}) {
+export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en">
       <body>{children}</body>
     </html>
-  )
+  );
 }

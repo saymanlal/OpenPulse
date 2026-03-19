@@ -1,12 +1,12 @@
 import { create } from 'zustand';
-import type { GraphNode, GraphEdge, GraphData } from '@/types/graph';
+
+import type { GraphData, GraphEdge, GraphNode } from '@/types/graph';
 
 interface GraphStore {
   nodes: GraphNode[];
   edges: GraphEdge[];
   selectedNodeId: string | null;
   hoveredNodeId: string | null;
-
   setGraphData: (data: GraphData) => void;
   setNodes: (nodes: GraphNode[]) => void;
   setEdges: (edges: GraphEdge[]) => void;
@@ -27,6 +27,8 @@ export const useGraphStore = create<GraphStore>((set) => ({
     set({
       nodes: data.nodes,
       edges: data.edges,
+      selectedNodeId: null,
+      hoveredNodeId: null,
     }),
 
   setNodes: (nodes: GraphNode[]) => set({ nodes }),
@@ -39,9 +41,7 @@ export const useGraphStore = create<GraphStore>((set) => ({
 
   updateNodePosition: (nodeId: string, position: [number, number, number]) =>
     set((state) => ({
-      nodes: state.nodes.map((node) =>
-        node.id === nodeId ? { ...node, position } : node
-      ),
+      nodes: state.nodes.map((node) => (node.id === nodeId ? { ...node, position } : node)),
     })),
 
   updateNodePositions: (positions: Record<string, [number, number, number]>) =>
