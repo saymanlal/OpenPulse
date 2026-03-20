@@ -1,96 +1,102 @@
 'use client';
 
-import { useEffect, useRef } from 'react';
-import { useFrame, useThree } from '@react-three/fiber';
-import * as THREE from 'three';
-
+import { useEffect, useState } from 'react';
 import { SCENE_CONFIG } from '@/lib/constants';
-import { getOrCreateDemoDataset, persistDemoDataset } from '@/lib/sampleData';
+import { evolveDemoDataset, getOrCreateDemoDataset, persistDemoDataset } from '@/lib/sampleData';
 import { useGraphStore } from '@/stores/graphStore';
-
-// 🚨 isolate sub-components too (prevents deep SSR leaks)
-import dynamic from 'next/dynamic';
-
-const CameraController = dynamic(() => import('./CameraController'), { ssr: false });
-const GraphEdges = dynamic(() => import('./GraphEdges'), { ssr: false });
-const GraphNodes = dynamic(() => import('./GraphNodes'), { ssr: false });
+import { useForceSimulation } from '@/hooks/useForceSimulation';
+import { useLoadGraphFromApi } from '@/hooks/useApiGraph';
+import CameraController from './CameraController';
+import GraphNodes from './GraphNodes';
+import GraphEdges from './GraphEdges';
 
 export default function Scene() {
-  const groupRef = useRef<THREE.Group>(null);
-
   const nodes = useGraphStore((state) => state.nodes);
+  const edges = useGraphStore((state) => state.edges);
   const setGraphData = useGraphStore((state) => state.setGraphData);
-  const setSelectedNode = useGraphStore((state) => state.setSelectedNode);
+  const { loadGraph } = useLoadGraphFromApi();
+  const [initialized, setInitialized] = useState(false);
+  const [isDemoMode, setIsDemoMode] = useState(false);
 
-  const { scene } = useThree();
-
-  // 🚨 guard against unexpected execution context
-  if (typeof window === 'undefined') return null;
-
-  // ✅ Fog setup (safe)
   useEffect(() => {
-    if (!scene) return;
-
-    scene.fog = new THREE.FogExp2(
-      SCENE_CONFIG.fog.color,
-      SCENE_CONFIG.fog.density
-    );
-
-    return () => {
-      if (scene) scene.fog = null;
+    const initializeGraph = async () => {
+      if (initialized) return;
+      
+      try {
+        await loadGraph();
+        setIsDemoMode(false);
+      } catch {
+        const fallbackData = getOrCreateDemoDataset();
+        setGraphData(fallbackData);
+        setIsDemoMode(true);
+      } finally {
+        setInitialized(true);
+      }
     };
-  }, [scene]);
 
-  // ✅ Demo data init (safe)
+    initializeGraph();
+  }, [initialized, loadGraph, setGraphData]);
+
   useEffect(() => {
-    if (nodes && nodes.length > 0) return;
+    if (!initialized || !isDemoMode) {
+      return;
+    }
 
-    const demo = getOrCreateDemoDataset();
-    persistDemoDataset(demo);
-    setGraphData(demo);
-  }, [nodes, setGraphData]);
+    const interval = window.setInterval(() => {
+      const current = useGraphStore.getState();
+      if (current.nodes.length !== 200 || current.edges.length !== 400) {
+        return;
+      }
 
-  // ✅ Animation loop (safe)
-  useFrame((state) => {
-    if (!groupRef.current) return;
+      const evolved = evolveDemoDataset({
+        nodes: current.nodes,
+        edges: current.edges,
+      });
 
-    groupRef.current.rotation.y =
-      Math.sin(state.clock.elapsedTime * 0.12) * 0.08;
-  });
+      current.setGraphData(evolved);
+      persistDemoDataset(evolved);
+    }, 3000);
+
+    return () => window.clearInterval(interval);
+  }, [initialized, isDemoMode]);
+
+  useForceSimulation(nodes, edges, initialized);
 
   return (
     <>
       <CameraController />
 
-      {/* Background */}
       <color attach="background" args={[SCENE_CONFIG.background]} />
 
-      {/* Lights */}
-      <ambientLight
-        intensity={SCENE_CONFIG.lighting.ambient.intensity}
+      <ambientLight 
+        intensity={SCENE_CONFIG.lighting.ambient.intensity} 
         color={SCENE_CONFIG.lighting.ambient.color}
       />
-
+      
       <directionalLight
         intensity={SCENE_CONFIG.lighting.directional.intensity}
         color={SCENE_CONFIG.lighting.directional.color}
         position={SCENE_CONFIG.lighting.directional.position}
+        castShadow
       />
-
+      
       <pointLight
         intensity={SCENE_CONFIG.lighting.point.intensity}
         color={SCENE_CONFIG.lighting.point.color}
         position={SCENE_CONFIG.lighting.point.position}
       />
 
-      {/* Graph */}
-      <group
-        ref={groupRef}
-        onPointerMissed={() => setSelectedNode(null)}
-      >
-        <GraphEdges />
-        <GraphNodes />
-      </group>
+      <gridHelper
+        args={[
+          SCENE_CONFIG.grid.size,
+          SCENE_CONFIG.grid.divisions,
+          SCENE_CONFIG.grid.colorCenterLine,
+          SCENE_CONFIG.grid.colorGrid,
+        ]}
+      />
+
+      <GraphEdges />
+      <GraphNodes />
     </>
   );
 }
