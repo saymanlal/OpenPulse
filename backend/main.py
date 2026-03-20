@@ -1,54 +1,35 @@
-from contextlib import asynccontextmanager
-
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from app.api import graph
+from app.api import analyze
 
-from app.api.analyze import router as analyze_router
-from app.api.graph import router as graph_router
-from app.core.config import get_settings
-from app.core.database import init_db
+app = FastAPI(title="OpenPulse API", version="0.3.0")
 
-settings = get_settings()
-
-
-@asynccontextmanager
-async def lifespan(app: FastAPI):
-    await init_db()
-    yield
-
-
-app = FastAPI(
-    title='OpenPulse API',
-    description='Analyze public GitHub repositories and stream graph data for the OpenPulse 3D client.',
-    version='1.0.0',
-    lifespan=lifespan,
-)
-
+# CORS configuration
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=settings.cors_origins,
+    allow_origins=["http://localhost:3000", "http://127.0.0.1:3000"],
     allow_credentials=True,
-    allow_methods=['*'],
-    allow_headers=['*'],
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
-app.include_router(analyze_router)
-app.include_router(graph_router)
+# Include routers
+app.include_router(graph.router, prefix="/api/graph", tags=["graph"])
+app.include_router(analyze.router, prefix="/api", tags=["analyze"])
 
 
-@app.get('/')
+@app.get("/health")
+async def health_check():
+    """Health check endpoint."""
+    return {"status": "healthy", "version": "0.3.0"}
+
+
+@app.get("/")
 async def root():
+    """Root endpoint."""
     return {
-        'name': 'OpenPulse API',
-        'version': '1.0.0',
-        'status': 'ready',
-    }
-
-
-@app.get('/health')
-async def health():
-    return {
-        'status': 'healthy',
-        'github_api_base': settings.github_api_base,
-        'cors_origins': settings.cors_origins,
+        "message": "OpenPulse API",
+        "version": "0.3.0",
+        "docs": "/docs",
     }
