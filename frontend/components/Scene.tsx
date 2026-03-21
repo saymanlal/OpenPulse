@@ -4,7 +4,6 @@ import { useEffect, useState } from 'react';
 import { SCENE_CONFIG } from '@/lib/constants';
 import { evolveDemoDataset, getOrCreateDemoDataset, persistDemoDataset } from '@/lib/sampleData';
 import { useGraphStore } from '@/stores/graphStore';
-import { useForceSimulation } from '@/hooks/useForceSimulation';
 import { useLoadGraphFromApi } from '@/hooks/useApiGraph';
 import CameraController from './CameraController';
 import GraphNodes from './GraphNodes';
@@ -37,16 +36,14 @@ export default function Scene() {
     initializeGraph();
   }, [initialized, loadGraph, setGraphData]);
 
+  // Gentle movement every 3 seconds
   useEffect(() => {
     if (!initialized || !isDemoMode) {
       return;
     }
 
-    // Slower evolution: 10 seconds instead of 3
     const interval = window.setInterval(() => {
       const current = useGraphStore.getState();
-      
-      // Check if we have demo data (120 nodes)
       if (current.nodes.length < 50) {
         return;
       }
@@ -58,12 +55,10 @@ export default function Scene() {
 
       current.setGraphData(evolved);
       persistDemoDataset(evolved);
-    }, 10000); // Changed from 3000 to 10000 (10 seconds)
+    }, 3000);  // Every 3 seconds
 
     return () => window.clearInterval(interval);
   }, [initialized, isDemoMode]);
-
-  useForceSimulation(nodes, edges, initialized);
 
   return (
     <>

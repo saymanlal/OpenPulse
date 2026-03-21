@@ -2,9 +2,8 @@
 
 import { useMemo } from 'react';
 import * as THREE from 'three';
-
-import { EDGE_CONFIG } from '@/lib/constants';
 import { useGraphStore } from '@/stores/graphStore';
+import { EDGE_CONFIG } from '@/lib/constants';
 
 export default function GraphEdges() {
   const nodes = useGraphStore((state) => state.nodes);
@@ -12,48 +11,84 @@ export default function GraphEdges() {
   const selectedNodeId = useGraphStore((state) => state.selectedNodeId);
   const hoveredNodeId = useGraphStore((state) => state.hoveredNodeId);
 
-  const geometry = useMemo(() => {
-    if (nodes.length === 0 || edges.length === 0) {
-      return null;
+  const nodePositionLookup = useMemo(() => {
+    const lookup = new Map<string, [number, number, number]>();
+    for (const node of nodes) {
+      lookup.set(node.id, node.position);
     }
+    return lookup;
+  }, [nodes]);
 
-    const nodePositions = new Map(nodes.map((node) => [node.id, node.position]));
-    const positions: number[] = [];
-    const colors: number[] = [];
+  const edgeGeometry = useMemo(() => {
+    if (edges.length === 0) return null;
+
+    const positions = new Float32Array(edges.length * 6);
+    const colors = new Float32Array(edges.length * 6);
+    
     const baseColor = new THREE.Color(EDGE_CONFIG.baseColor);
-    const activeColor = new THREE.Color(EDGE_CONFIG.activeColor);
+    const selectedColor = new THREE.Color(EDGE_CONFIG.selectedColor);
+    const hoveredColor = new THREE.Color(EDGE_CONFIG.hoveredColor);
+    const depColor = new THREE.Color(EDGE_CONFIG.dependencyColor);
+    const devDepColor = new THREE.Color(EDGE_CONFIG.devDependencyColor);
 
-    edges.forEach((edge) => {
-      const source = nodePositions.get(edge.source);
-      const target = nodePositions.get(edge.target);
-      if (!source || !target) {
-        return;
+    for (let i = 0; i < edges.length; i += 1) {
+      const edge = edges[i];
+      const source = nodePositionLookup.get(edge.source);
+      const target = nodePositionLookup.get(edge.target);
+
+      if (!source || !target) continue;
+
+      const base = i * 6;
+      positions[base] = source[0];
+      positions[base + 1] = source[1];
+      positions[base + 2] = source[2];
+      positions[base + 3] = target[0];
+      positions[base + 4] = target[1];
+      positions[base + 5] = target[2];
+
+      const isConnectedToSelected =
+        selectedNodeId !== null &&
+        (edge.source === selectedNodeId || edge.target === selectedNodeId);
+      const isConnectedToHovered =
+        hoveredNodeId !== null &&
+        (edge.source === hoveredNodeId || edge.target === hoveredNodeId);
+
+      // Color based on edge type and state
+      let edgeColor = baseColor;
+      if (isConnectedToSelected) {
+        edgeColor = selectedColor;
+      } else if (isConnectedToHovered) {
+        edgeColor = hoveredColor;
+      } else if (edge.weight && edge.weight > 0.8) {
+        edgeColor = depColor;  // Strong dependency
+      } else if (edge.weight && edge.weight < 0.5) {
+        edgeColor = devDepColor;  // Weak/dev dependency
       }
 
-      positions.push(source[0], source[1], source[2], target[0], target[1], target[2]);
-      const color =
-        edge.source === selectedNodeId ||
-        edge.target === selectedNodeId ||
-        edge.source === hoveredNodeId ||
-        edge.target === hoveredNodeId
-          ? activeColor
-          : baseColor;
-      colors.push(color.r, color.g, color.b, color.r, color.g, color.b);
-    });
+      colors[base] = edgeColor.r;
+      colors[base + 1] = edgeColor.g;
+      colors[base + 2] = edgeColor.b;
+      colors[base + 3] = edgeColor.r;
+      colors[base + 4] = edgeColor.g;
+      colors[base + 5] = edgeColor.b;
+    }
 
-    const nextGeometry = new THREE.BufferGeometry();
-    nextGeometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
-    nextGeometry.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
-    return nextGeometry;
-  }, [edges, hoveredNodeId, nodes, selectedNodeId]);
+    const geometry = new THREE.BufferGeometry();
+    geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+    geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+    return geometry;
+  }, [edges, hoveredNodeId, nodePositionLookup, selectedNodeId]);
 
-  if (!geometry) {
-    return null;
-  }
+  if (!edgeGeometry) return null;
 
   return (
-    <lineSegments geometry={geometry} frustumCulled={false}>
-      <lineBasicMaterial transparent opacity={EDGE_CONFIG.opacity} vertexColors />
+    <lineSegments geometry={edgeGeometry} frustumCulled={false}>
+      <lineBasicMaterial
+        vertexColors
+        transparent
+        opacity={EDGE_CONFIG.opacity}
+        linewidth={3}
+      />
     </lineSegments>
   );
 }

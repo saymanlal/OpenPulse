@@ -63,7 +63,7 @@ export default function GraphNodes() {
       const baseScale = baseScales[index];
       const isSelected = node.id === activeState.selectedNodeId;
       const isHovered = node.id === activeState.hoveredNodeId;
-      const pulse = isSelected ? 1 + Math.sin(elapsed * 3.5) * 0.06 : isHovered ? 1.08 : 1;
+      const pulse = isSelected ? 1 + Math.sin(elapsed * 3.5) * 0.08 : isHovered ? 1.12 : 1;
       const scale = baseScale * (isSelected ? NODE_CONFIG.selectedScale : isHovered ? NODE_CONFIG.hoverScale : 1) * pulse;
 
       tempObject.position.set(...node.position);
@@ -119,7 +119,7 @@ export default function GraphNodes() {
         vertexColors
         metalness={NODE_CONFIG.metalness}
         roughness={NODE_CONFIG.roughness}
-        emissive="#08111f"
+        emissive="#3b82f6"
         emissiveIntensity={NODE_CONFIG.emissiveIntensity}
       />
     </instancedMesh>
