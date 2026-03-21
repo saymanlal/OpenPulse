@@ -4,47 +4,52 @@ import { useEffect, useMemo, useRef } from 'react';
 import { ThreeEvent, useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 
-import { NODE_COLORS, NODE_EMISSIVE, NODE_CONFIG } from '@/lib/constants';
+import { NODE_CONFIG } from '@/lib/constants';
 import { useGraphStore } from '@/stores/graphStore';
-import type { NodeType } from '@/types/graph';
 
 const tempObject = new THREE.Object3D();
-const tempColor = new THREE.Color();
+const tempColor  = new THREE.Color();
+
+// Silver colour used for all non-selected nodes
+const SILVER = '#c0c0c8';
+// Yellow glow for the one selected node
+const SELECTED_COLOR = '#fde047';
+// Slightly lighter silver for hover
+const HOVER_COLOR = '#e8e8f0';
 
 export default function GraphNodes() {
-  const nodes = useGraphStore((state) => state.nodes);
-  const selectedNodeId = useGraphStore((state) => state.selectedNodeId);
-  const hoveredNodeId = useGraphStore((state) => state.hoveredNodeId);
-  const setSelectedNode = useGraphStore((state) => state.setSelectedNode);
-  const setHoveredNode = useGraphStore((state) => state.setHoveredNode);
+  const nodes           = useGraphStore((s) => s.nodes);
+  const selectedNodeId  = useGraphStore((s) => s.selectedNodeId);
+  const hoveredNodeId   = useGraphStore((s) => s.hoveredNodeId);
+  const setSelectedNode = useGraphStore((s) => s.setSelectedNode);
+  const setHoveredNode  = useGraphStore((s) => s.setHoveredNode);
 
-  const meshRef = useRef<THREE.InstancedMesh>(null);
-  const nodeLookupRef = useRef(nodes);
+  const meshRef        = useRef<THREE.InstancedMesh>(null);
+  const nodeLookupRef  = useRef(nodes);
   const activeStateRef = useRef({ selectedNodeId, hoveredNodeId });
 
   useEffect(() => { nodeLookupRef.current = nodes; }, [nodes]);
-  useEffect(() => { activeStateRef.current = { selectedNodeId, hoveredNodeId }; }, [hoveredNodeId, selectedNodeId]);
+  useEffect(() => {
+    activeStateRef.current = { selectedNodeId, hoveredNodeId };
+  }, [selectedNodeId, hoveredNodeId]);
 
   const baseScales = useMemo(
-    () => nodes.map((node) => NODE_CONFIG.baseSize * (node.size ?? 1)),
+    () => nodes.map((n) => NODE_CONFIG.baseSize * (n.size ?? 1)),
     [nodes],
   );
 
-  // Set initial positions + per-type colors
+  // Initialise positions + silver color whenever nodes array changes
   useEffect(() => {
     const mesh = meshRef.current;
     if (!mesh) return;
-
     nodes.forEach((node, i) => {
       tempObject.position.set(...node.position);
       tempObject.scale.setScalar(baseScales[i]);
       tempObject.updateMatrix();
       mesh.setMatrixAt(i, tempObject.matrix);
-
-      const hex = NODE_COLORS[node.type as NodeType] ?? '#6b7280';
-      mesh.setColorAt(i, tempColor.set(hex));
+      // All nodes start silver
+      mesh.setColorAt(i, tempColor.set(SILVER));
     });
-
     mesh.instanceMatrix.needsUpdate = true;
     if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
   }, [baseScales, nodes]);
@@ -58,25 +63,25 @@ export default function GraphNodes() {
 
     nodeLookupRef.current.forEach((node, i) => {
       const isSelected = node.id === selId;
-      const isHovered = node.id === hovId;
+      const isHovered  = !isSelected && node.id === hovId;
 
+      // Pulse scale only for selected node
       const pulse = isSelected ? 1 + Math.sin(elapsed * 3.5) * 0.08 : 1;
-      const scale =
-        baseScales[i] *
-        (isSelected ? NODE_CONFIG.selectedScale : isHovered ? NODE_CONFIG.hoverScale : 1) *
-        pulse;
+      const scale = baseScales[i]
+        * (isSelected ? NODE_CONFIG.selectedScale : isHovered ? NODE_CONFIG.hoverScale : 1)
+        * pulse;
 
       tempObject.position.set(...node.position);
       tempObject.scale.setScalar(scale);
       tempObject.updateMatrix();
       mesh.setMatrixAt(i, tempObject.matrix);
 
-      // Color: bright white when selected, lighter when hovered, type color otherwise
+      // ONLY selected → yellow. Hovered → bright silver. All others → silver.
       const hex = isSelected
-        ? '#ffffff'
+        ? SELECTED_COLOR
         : isHovered
-          ? lighten(NODE_COLORS[node.type as NodeType] ?? '#6b7280')
-          : (NODE_COLORS[node.type as NodeType] ?? '#6b7280');
+          ? HOVER_COLOR
+          : SILVER;
 
       mesh.setColorAt(i, tempColor.set(hex));
     });
@@ -120,19 +125,10 @@ export default function GraphNodes() {
         vertexColors
         metalness={NODE_CONFIG.metalness}
         roughness={NODE_CONFIG.roughness}
-        emissive="#ffffff"
-        emissiveIntensity={NODE_CONFIG.emissiveIntensity}
+        emissive="#000000"
+        emissiveIntensity={0}
         toneMapped={false}
       />
     </instancedMesh>
   );
-}
-
-// Lighten a hex color by blending toward white
-function lighten(hex: string, amount = 0.4): string {
-  const c = new THREE.Color(hex);
-  c.r = Math.min(1, c.r + amount);
-  c.g = Math.min(1, c.g + amount);
-  c.b = Math.min(1, c.b + amount);
-  return `#${c.getHexString()}`;
 }

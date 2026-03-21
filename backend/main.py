@@ -5,7 +5,6 @@ from app.api import analyze
 
 app = FastAPI(title="OpenPulse API", version="0.3.0")
 
-# CORS configuration
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["http://localhost:3000", "http://127.0.0.1:3000"],
@@ -14,20 +13,17 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Include routers
-app.include_router(graph.router, prefix="/api/graph", tags=["graph"])
-app.include_router(analyze.router, prefix="/api", tags=["analyze"])
+app.include_router(graph.router)
+app.include_router(analyze.router)
 
 
 @app.get("/health")
 async def health_check():
-    """Health check endpoint."""
     return {"status": "healthy", "version": "0.3.0"}
 
 
 @app.get("/")
 async def root():
-    """Root endpoint."""
     return {
         "message": "OpenPulse API",
         "version": "0.3.0",

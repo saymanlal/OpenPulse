@@ -18,16 +18,16 @@ export const SCENE_CONFIG = {
   },
   lighting: {
     ambient: {
-      intensity: 1.8,
+      intensity: 2.2,
       color: '#ffffff',
     },
     directional: {
-      intensity: 2.5,
+      intensity: 3.0,
       color: '#ffffff',
       position: [30, 40, 30] as [number, number, number],
     },
     point: {
-      intensity: 2.0,
+      intensity: 2.5,
       color: '#8b5cf6',
       position: [0, 25, 0] as [number, number, number],
     },
@@ -46,13 +46,13 @@ export const SCENE_CONFIG = {
 } as const;
 
 export const NODE_CONFIG = {
-  baseSize: 0.6,
-  hoverScale: 1.5,
-  selectedScale: 1.8,
+  baseSize: 1.0,        // was 0.6 — bigger nodes
+  hoverScale: 1.4,
+  selectedScale: 1.7,
   segments: 16,
-  metalness: 0.5,
-  roughness: 0.2,
-  emissiveIntensity: 0.8,
+  metalness: 0.15,      // lower metalness = brighter silver appearance
+  roughness: 0.25,      // slight roughness for matte silver
+  emissiveIntensity: 0, // zero — no emissive so nodes don't self-colour
 } as const;
 
 export const EDGE_CONFIG = {
@@ -66,20 +66,20 @@ export const EDGE_CONFIG = {
   selectedOpacity: 1.0,
 } as const;
 
-// Vibrant distinct colors — matches screenshot palette
+// These are used ONLY for the Inspector panel dots/badges and edge colouring.
+// GraphNodes ignores these — all nodes render silver unless selected.
 export const NODE_COLORS: Record<NodeType, string> = {
-  service:       '#22d3ee',   // bright cyan
-  library:       '#a78bfa',   // violet
-  repository:    '#f472b6',   // pink
-  database:      '#fbbf24',   // amber
-  api:           '#34d399',   // emerald
-  server:        '#60a5fa',   // blue
-  ip:            '#fb923c',   // orange
-  threat:        '#f87171',   // red/coral
-  vulnerability: '#e879f9',   // fuchsia
+  service:       '#22d3ee',
+  library:       '#a78bfa',
+  repository:    '#f472b6',
+  database:      '#fbbf24',
+  api:           '#34d399',
+  server:        '#60a5fa',
+  ip:            '#fb923c',
+  threat:        '#f87171',
+  vulnerability: '#e879f9',
 };
 
-// Emissive glow per type (darker variant)
 export const NODE_EMISSIVE: Record<NodeType, string> = {
   service:       '#164e63',
   library:       '#4c1d95',
