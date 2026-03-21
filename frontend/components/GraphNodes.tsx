@@ -4,8 +4,9 @@ import { useEffect, useMemo, useRef } from 'react';
 import { ThreeEvent, useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 
-import { NODE_COLORS, NODE_CONFIG } from '@/lib/constants';
+import { NODE_COLORS, NODE_EMISSIVE, NODE_CONFIG } from '@/lib/constants';
 import { useGraphStore } from '@/stores/graphStore';
+import type { NodeType } from '@/types/graph';
 
 const tempObject = new THREE.Object3D();
 const tempColor = new THREE.Color();
@@ -16,95 +17,95 @@ export default function GraphNodes() {
   const hoveredNodeId = useGraphStore((state) => state.hoveredNodeId);
   const setSelectedNode = useGraphStore((state) => state.setSelectedNode);
   const setHoveredNode = useGraphStore((state) => state.setHoveredNode);
+
   const meshRef = useRef<THREE.InstancedMesh>(null);
   const nodeLookupRef = useRef(nodes);
   const activeStateRef = useRef({ selectedNodeId, hoveredNodeId });
 
-  useEffect(() => {
-    nodeLookupRef.current = nodes;
-  }, [nodes]);
+  useEffect(() => { nodeLookupRef.current = nodes; }, [nodes]);
+  useEffect(() => { activeStateRef.current = { selectedNodeId, hoveredNodeId }; }, [hoveredNodeId, selectedNodeId]);
 
-  useEffect(() => {
-    activeStateRef.current = { selectedNodeId, hoveredNodeId };
-  }, [hoveredNodeId, selectedNodeId]);
+  const baseScales = useMemo(
+    () => nodes.map((node) => NODE_CONFIG.baseSize * (node.size ?? 1)),
+    [nodes],
+  );
 
-  const baseScales = useMemo(() => nodes.map((node) => NODE_CONFIG.baseSize * (node.size ?? 1)), [nodes]);
-
+  // Set initial positions + per-type colors
   useEffect(() => {
     const mesh = meshRef.current;
-    if (!mesh) {
-      return;
-    }
+    if (!mesh) return;
 
-    nodes.forEach((node, index) => {
+    nodes.forEach((node, i) => {
       tempObject.position.set(...node.position);
-      tempObject.scale.setScalar(baseScales[index]);
+      tempObject.scale.setScalar(baseScales[i]);
       tempObject.updateMatrix();
-      mesh.setMatrixAt(index, tempObject.matrix);
-      mesh.setColorAt(index, tempColor.set(NODE_COLORS[node.type]));
+      mesh.setMatrixAt(i, tempObject.matrix);
+
+      const hex = NODE_COLORS[node.type as NodeType] ?? '#6b7280';
+      mesh.setColorAt(i, tempColor.set(hex));
     });
 
     mesh.instanceMatrix.needsUpdate = true;
-    if (mesh.instanceColor) {
-      mesh.instanceColor.needsUpdate = true;
-    }
+    if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
   }, [baseScales, nodes]);
 
   useFrame((state) => {
     const mesh = meshRef.current;
-    if (!mesh) {
-      return;
-    }
+    if (!mesh) return;
 
     const elapsed = state.clock.getElapsedTime();
-    const activeState = activeStateRef.current;
+    const { selectedNodeId: selId, hoveredNodeId: hovId } = activeStateRef.current;
 
-    nodeLookupRef.current.forEach((node, index) => {
-      const baseScale = baseScales[index];
-      const isSelected = node.id === activeState.selectedNodeId;
-      const isHovered = node.id === activeState.hoveredNodeId;
-      const pulse = isSelected ? 1 + Math.sin(elapsed * 3.5) * 0.08 : isHovered ? 1.12 : 1;
-      const scale = baseScale * (isSelected ? NODE_CONFIG.selectedScale : isHovered ? NODE_CONFIG.hoverScale : 1) * pulse;
+    nodeLookupRef.current.forEach((node, i) => {
+      const isSelected = node.id === selId;
+      const isHovered = node.id === hovId;
+
+      const pulse = isSelected ? 1 + Math.sin(elapsed * 3.5) * 0.08 : 1;
+      const scale =
+        baseScales[i] *
+        (isSelected ? NODE_CONFIG.selectedScale : isHovered ? NODE_CONFIG.hoverScale : 1) *
+        pulse;
 
       tempObject.position.set(...node.position);
       tempObject.scale.setScalar(scale);
       tempObject.updateMatrix();
-      mesh.setMatrixAt(index, tempObject.matrix);
+      mesh.setMatrixAt(i, tempObject.matrix);
+
+      // Color: bright white when selected, lighter when hovered, type color otherwise
+      const hex = isSelected
+        ? '#ffffff'
+        : isHovered
+          ? lighten(NODE_COLORS[node.type as NodeType] ?? '#6b7280')
+          : (NODE_COLORS[node.type as NodeType] ?? '#6b7280');
+
+      mesh.setColorAt(i, tempColor.set(hex));
     });
 
     mesh.instanceMatrix.needsUpdate = true;
+    if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
   });
 
-  const getNodeFromEvent = (event: ThreeEvent<MouseEvent | PointerEvent>) => {
-    const instanceId = event.instanceId;
-    if (instanceId === undefined) {
-      return null;
-    }
-    return nodeLookupRef.current[instanceId] ?? null;
+  const getNode = (e: ThreeEvent<MouseEvent | PointerEvent>) => {
+    const id = e.instanceId;
+    return id !== undefined ? nodeLookupRef.current[id] ?? null : null;
   };
 
-  if (nodes.length === 0) {
-    return null;
-  }
+  if (nodes.length === 0) return null;
 
   return (
     <instancedMesh
       ref={meshRef}
       args={[undefined, undefined, nodes.length]}
-      onClick={(event) => {
-        event.stopPropagation();
-        const node = getNodeFromEvent(event);
-        if (!node) {
-          return;
-        }
+      onClick={(e) => {
+        e.stopPropagation();
+        const node = getNode(e);
+        if (!node) return;
         setSelectedNode(node.id === selectedNodeId ? null : node.id);
       }}
-      onPointerMove={(event) => {
-        event.stopPropagation();
-        const node = getNodeFromEvent(event);
-        if (!node) {
-          return;
-        }
+      onPointerMove={(e) => {
+        e.stopPropagation();
+        const node = getNode(e);
+        if (!node) return;
         setHoveredNode(node.id);
         document.body.style.cursor = 'pointer';
       }}
@@ -119,9 +120,19 @@ export default function GraphNodes() {
         vertexColors
         metalness={NODE_CONFIG.metalness}
         roughness={NODE_CONFIG.roughness}
-        emissive="#3b82f6"
+        emissive="#ffffff"
         emissiveIntensity={NODE_CONFIG.emissiveIntensity}
+        toneMapped={false}
       />
     </instancedMesh>
   );
+}
+
+// Lighten a hex color by blending toward white
+function lighten(hex: string, amount = 0.4): string {
+  const c = new THREE.Color(hex);
+  c.r = Math.min(1, c.r + amount);
+  c.g = Math.min(1, c.g + amount);
+  c.b = Math.min(1, c.b + amount);
+  return `#${c.getHexString()}`;
 }

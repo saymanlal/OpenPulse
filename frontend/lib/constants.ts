@@ -46,7 +46,7 @@ export const SCENE_CONFIG = {
 } as const;
 
 export const NODE_CONFIG = {
-  baseSize: 0.6,  // Much smaller
+  baseSize: 0.6,
   hoverScale: 1.5,
   selectedScale: 1.8,
   segments: 16,
@@ -59,23 +59,37 @@ export const EDGE_CONFIG = {
   baseColor: '#94a3b8',
   selectedColor: '#3b82f6',
   hoveredColor: '#60a5fa',
-  dependencyColor: '#10b981',  // Green for normal deps
-  devDependencyColor: '#f59e0b',  // Amber for dev deps
-  criticalColor: '#ef4444',  // Red for critical path
+  dependencyColor: '#10b981',
+  devDependencyColor: '#f59e0b',
+  criticalColor: '#ef4444',
   opacity: 0.8,
   selectedOpacity: 1.0,
 } as const;
 
+// Vibrant distinct colors — matches screenshot palette
 export const NODE_COLORS: Record<NodeType, string> = {
-  service: '#10b981',      // Emerald green
-  library: '#3b82f6',      // Blue
-  repository: '#a78bfa',   // Purple
-  database: '#f59e0b',     // Amber
-  api: '#06b6d4',          // Cyan
-  server: '#64748b',       // Slate gray
-  ip: '#ec4899',           // Pink
-  threat: '#ef4444',       // Red
-  vulnerability: '#f97316', // Orange
+  service:       '#22d3ee',   // bright cyan
+  library:       '#a78bfa',   // violet
+  repository:    '#f472b6',   // pink
+  database:      '#fbbf24',   // amber
+  api:           '#34d399',   // emerald
+  server:        '#60a5fa',   // blue
+  ip:            '#fb923c',   // orange
+  threat:        '#f87171',   // red/coral
+  vulnerability: '#e879f9',   // fuchsia
+};
+
+// Emissive glow per type (darker variant)
+export const NODE_EMISSIVE: Record<NodeType, string> = {
+  service:       '#164e63',
+  library:       '#4c1d95',
+  repository:    '#831843',
+  database:      '#78350f',
+  api:           '#064e3b',
+  server:        '#1e3a8a',
+  ip:            '#7c2d12',
+  threat:        '#7f1d1d',
+  vulnerability: '#701a75',
 };
 
 export const PERFORMANCE = {
