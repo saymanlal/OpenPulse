@@ -2,7 +2,7 @@ from sqlalchemy import Column, String, Float, ForeignKey, DateTime
 from sqlalchemy.sql import func
 from app.core.database import Base
 
-class EdgeModel(Base):
+class Edge(Base):
     __tablename__ = "edges"
 
     id = Column(String, primary_key=True, index=True)
@@ -21,3 +21,6 @@ class EdgeModel(Base):
             "weight": self.weight,
             "label": self.label,
         }
+
+# Alias for backward compatibility
+EdgeModel = Edge

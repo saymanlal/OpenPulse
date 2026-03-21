@@ -42,9 +42,12 @@ export default function Scene() {
       return;
     }
 
+    // Slower evolution: 10 seconds instead of 3
     const interval = window.setInterval(() => {
       const current = useGraphStore.getState();
-      if (current.nodes.length !== 200 || current.edges.length !== 400) {
+      
+      // Check if we have demo data (120 nodes)
+      if (current.nodes.length < 50) {
         return;
       }
 
@@ -55,7 +58,7 @@ export default function Scene() {
 
       current.setGraphData(evolved);
       persistDemoDataset(evolved);
-    }, 3000);
+    }, 10000); // Changed from 3000 to 10000 (10 seconds)
 
     return () => window.clearInterval(interval);
   }, [initialized, isDemoMode]);

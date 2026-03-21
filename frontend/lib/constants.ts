@@ -18,19 +18,25 @@ export const SCENE_CONFIG = {
   },
   lighting: {
     ambient: {
-      intensity: 0.55,
-      color: '#dbeafe',
+      intensity: 0.8,  // Increased from 0.55
+      color: '#ffffff',
     },
     directional: {
-      intensity: 1.2,
+      intensity: 1.5,  // Increased from 1.2
       color: '#ffffff',
       position: [8, 14, 10] as [number, number, number],
     },
     point: {
-      intensity: 1.6,
-      color: '#2563eb',
+      intensity: 2.0,  // Increased from 1.6
+      color: '#3b82f6',
       position: [-10, 4, 12] as [number, number, number],
     },
+  },
+  grid: {
+    size: 100,
+    divisions: 20,
+    colorCenterLine: '#334155',
+    colorGrid: '#1e293b',
   },
   fog: {
     color: '#0b0f19',
@@ -40,31 +46,31 @@ export const SCENE_CONFIG = {
 } as const;
 
 export const NODE_CONFIG = {
-  baseSize: 0.58,
-  hoverScale: 1.22,
-  selectedScale: 1.38,
-  segments: 7,
-  metalness: 0.18,
-  roughness: 0.42,
-  emissiveIntensity: 0.18,
+  baseSize: 1.2,  // Increased from 0.58 - MUCH BIGGER
+  hoverScale: 1.3,
+  selectedScale: 1.5,
+  segments: 12,  // Increased from 7 - smoother spheres
+  metalness: 0.3,
+  roughness: 0.4,
+  emissiveIntensity: 0.4,  // Increased from 0.18 - brighter glow
 } as const;
 
 export const EDGE_CONFIG = {
-  baseColor: '#334155',
+  baseColor: '#4b5563',  // Lighter gray
   activeColor: '#60a5fa',
-  opacity: 0.34,
+  opacity: 0.5,  // Increased from 0.34 - more visible
 } as const;
 
 export const NODE_COLORS: Record<NodeType, string> = {
-  service: '#10b981',
-  library: '#60a5fa',
-  repository: '#a78bfa',
-  database: '#f59e0b',
-  api: '#22d3ee',
-  server: '#94a3b8',
-  ip: '#fb7185',
-  threat: '#ef4444',
-  vulnerability: '#f97316',
+  service: '#10b981',      // green
+  library: '#60a5fa',      // blue
+  repository: '#a78bfa',   // purple
+  database: '#f59e0b',     // amber
+  api: '#22d3ee',          // cyan
+  server: '#94a3b8',       // slate
+  ip: '#fb7185',           // pink
+  threat: '#ef4444',       // red
+  vulnerability: '#f97316', // orange
 };
 
 export const PERFORMANCE = {

@@ -139,3 +139,30 @@ export function persistDemoDataset(data: GraphData): void {
 
   window.localStorage.setItem(DEMO_STORAGE_KEY, JSON.stringify(data));
 }
+
+export function evolveDemoDataset(current: GraphData): GraphData {
+  const nodes = current.nodes.map((node, index) => {
+    // Evolve fewer nodes - only 1 out of 10 instead of 1 out of 6
+    if (index % 10 !== 0) {
+      return node;
+    }
+
+    const [x, y, z] = node.position;
+    const jitter = 0.15;  // Reduced from 0.35 - much gentler movement
+    const nextRisk = node.riskScore ?? 0.5;
+
+    return {
+      ...node,
+      position: [
+        Number((x + (Math.random() - 0.5) * jitter).toFixed(3)),
+        Number((y + (Math.random() - 0.5) * jitter).toFixed(3)),
+        Number((z + (Math.random() - 0.5) * jitter).toFixed(3)),
+      ] as [number, number, number],
+      riskScore: Number(
+        Math.min(1, Math.max(0, nextRisk + (Math.random() - 0.5) * 0.03)).toFixed(3)  // Reduced from 0.06
+      ),
+    };
+  });
+
+  return { nodes, edges: current.edges };
+}
