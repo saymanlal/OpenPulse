@@ -158,7 +158,7 @@ export default function GraphNodes() {
         metalness={0.9}   // high metallic = realistic silver
         roughness={0.25}  // low roughness = shiny surface
         emissive="#ffffff"
-        emissiveIntensity={0.05}
+        emissiveIntensity={0.05} 
       />
     </instancedMesh>
   );
