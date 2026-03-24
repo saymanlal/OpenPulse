@@ -13,7 +13,6 @@ export default function Scene() {
   const setGraphData = useGraphStore((s) => s.setGraphData);
   const setNodes     = useGraphStore((s) => s.setNodes);
   const { loadGraph } = useLoadGraphFromApi();
-
   const [initialized, setInitialized] = useState(false);
   const [isDemoMode,  setIsDemoMode]  = useState(false);
   const initRef = useRef(false);
@@ -37,35 +36,42 @@ export default function Scene() {
     })();
   }, [loadGraph, setGraphData]);
 
-  // Demo evolution — runs every 3 s, preserves selection
+  // Evolution — runs ALWAYS every 3s (demo OR API data)
   useEffect(() => {
-    if (!initialized || !isDemoMode) return;
+    if (!initialized) return;  // REMOVED isDemoMode check
 
     const id = window.setInterval(() => {
       const { nodes, edges } = useGraphStore.getState();
       const evolved = evolveDemoDataset({ nodes, edges });
-      setNodes(evolved.nodes);          // setNodes never clears selectedNodeId
-      persistDemoDataset(evolved);
+      setNodes(evolved.nodes);
+      
+      // Only persist to localStorage in demo mode
+      if (isDemoMode) {
+        persistDemoDataset(evolved);
+      }
     }, 3000);
 
     return () => window.clearInterval(id);
-  }, [initialized, isDemoMode, setNodes]);
+  }, [initialized, isDemoMode, setNodes]);  // Keep isDemoMode in deps for persist logic
 
   return (
     <>
       <CameraController />
+
       <color attach="background" args={[SCENE_CONFIG.background]} />
 
       <ambientLight
         intensity={SCENE_CONFIG.lighting.ambient.intensity}
         color={SCENE_CONFIG.lighting.ambient.color}
       />
+      
       <directionalLight
         intensity={SCENE_CONFIG.lighting.directional.intensity}
         color={SCENE_CONFIG.lighting.directional.color}
         position={SCENE_CONFIG.lighting.directional.position}
         castShadow
       />
+      
       <pointLight
         intensity={SCENE_CONFIG.lighting.point.intensity}
         color={SCENE_CONFIG.lighting.point.color}
