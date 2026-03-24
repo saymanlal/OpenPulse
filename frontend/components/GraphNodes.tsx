@@ -10,12 +10,12 @@ import { useGraphStore } from '@/stores/graphStore';
 const tempObject = new THREE.Object3D();
 const tempColor  = new THREE.Color();
 
-// Silver colour used for all non-selected nodes
-const SILVER = '#c0c0c8';
-// Yellow glow for the one selected node
-const SELECTED_COLOR = '#fde047';
-// Slightly lighter silver for hover
-const HOVER_COLOR = '#e8e8f0';
+// Shining white for all non-selected nodes
+const WHITE_GLOW = '#ffffff';
+// Golden glow for selected node
+const GOLDEN_GLOW = '#fbbf24';
+// Brighter white for hover
+const HOVER_GLOW = '#f0f9ff';
 
 export default function GraphNodes() {
   const nodes           = useGraphStore((s) => s.nodes);
@@ -38,7 +38,7 @@ export default function GraphNodes() {
     [nodes],
   );
 
-  // Initialise positions + silver color whenever nodes array changes
+  // Initialize positions + white color whenever nodes array changes
   useEffect(() => {
     const mesh = meshRef.current;
     if (!mesh) return;
@@ -47,8 +47,8 @@ export default function GraphNodes() {
       tempObject.scale.setScalar(baseScales[i]);
       tempObject.updateMatrix();
       mesh.setMatrixAt(i, tempObject.matrix);
-      // All nodes start silver
-      mesh.setColorAt(i, tempColor.set(SILVER));
+      // All nodes start white
+      mesh.setColorAt(i, tempColor.set(WHITE_GLOW));
     });
     mesh.instanceMatrix.needsUpdate = true;
     if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
@@ -65,8 +65,8 @@ export default function GraphNodes() {
       const isSelected = node.id === selId;
       const isHovered  = !isSelected && node.id === hovId;
 
-      // Pulse scale only for selected node
-      const pulse = isSelected ? 1 + Math.sin(elapsed * 3.5) * 0.08 : 1;
+      // Pulse scale for selected node
+      const pulse = isSelected ? 1 + Math.sin(elapsed * 3.5) * 0.12 : 1;
       const scale = baseScales[i]
         * (isSelected ? NODE_CONFIG.selectedScale : isHovered ? NODE_CONFIG.hoverScale : 1)
         * pulse;
@@ -76,14 +76,14 @@ export default function GraphNodes() {
       tempObject.updateMatrix();
       mesh.setMatrixAt(i, tempObject.matrix);
 
-      // ONLY selected → yellow. Hovered → bright silver. All others → silver.
-      const hex = isSelected
-        ? SELECTED_COLOR
+      // ONLY selected → golden. Hovered → bright white. All others → white.
+      const color = isSelected
+        ? GOLDEN_GLOW
         : isHovered
-          ? HOVER_COLOR
-          : SILVER;
+          ? HOVER_GLOW
+          : WHITE_GLOW;
 
-      mesh.setColorAt(i, tempColor.set(hex));
+      mesh.setColorAt(i, tempColor.set(color));
     });
 
     mesh.instanceMatrix.needsUpdate = true;
@@ -123,10 +123,10 @@ export default function GraphNodes() {
       <sphereGeometry args={[1, NODE_CONFIG.segments, NODE_CONFIG.segments]} />
       <meshStandardMaterial
         vertexColors
-        metalness={NODE_CONFIG.metalness}
-        roughness={NODE_CONFIG.roughness}
-        emissive="#000000"
-        emissiveIntensity={0}
+        metalness={0.6}
+        roughness={0.2}
+        emissive="#ffffff"
+        emissiveIntensity={0.8}
         toneMapped={false}
       />
     </instancedMesh>
