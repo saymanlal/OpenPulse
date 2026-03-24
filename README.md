@@ -1,6 +1,6 @@
 # OpenPulse
 
-![License](https://img.shields.io/badge/License-Apache%202.0-blue)](https://opensource.org/licenses/Apache-2.0)
+[![License](https://img.shields.io/badge/License-Apache%202.0-blue)](https://opensource.org/licenses/Apache-2.0)
 ![PWA](https://img.shields.io/badge/PWA-Enabled-blue)
 ![Offline](https://img.shields.io/badge/Offline-Ready-blue)
 ![Hackathon](https://img.shields.io/badge/FOSS%20Hack-2026-orange)
