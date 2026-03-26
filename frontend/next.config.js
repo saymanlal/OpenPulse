@@ -1,14 +1,16 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-    reactStrictMode: true,
-    transpilePackages: ['three'],
-    webpack: (config) => {
-      config.externals.push({
-        'utf-8-validate': 'commonjs utf-8-validate',
-        'bufferutil': 'commonjs bufferutil',
-      });
-      return config;
+  reactStrictMode: true,
+  transpilePackages: ['three'],
+  turbopack: {},
+  experimental: {
+    turbo: {
+      resolveAlias: {
+        'utf-8-validate': { browser: './empty-module.js' },
+        'bufferutil':     { browser: './empty-module.js' },
+      },
     },
-  };
-  
-  module.exports = nextConfig;
+  },
+};
+
+module.exports = nextConfig;

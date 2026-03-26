@@ -1,5 +1,4 @@
-import { useCallback, useState } from 'react';
-
+import { useCallback, useState, useEffect } from 'react';
 import { normalizeAnalyzerGraph } from '@/lib/graphLayout';
 import { getOrCreateDemoDataset, persistDemoDataset } from '@/lib/sampleData';
 import { apiClient } from '@/services/api';
@@ -67,17 +66,76 @@ export function useRepositoryAnalysis() {
   };
 }
 
-export function useApiConnection() {
-  const [connected, setConnected] = useState<boolean | null>(null);
+// New hooks for Header.tsx compatibility
+export function useLoadGraphFromApi() {
+  const [loading, setLoading] = useState(false);
+  const setGraphData = useGraphStore((state) => state.setGraphData);
 
-  const checkConnection = useCallback(async () => {
+  const loadGraph = useCallback(async () => {
+    setLoading(true);
     try {
-      await apiClient.health();
-      setConnected(true);
-    } catch {
-      setConnected(false);
+      const response = await fetch('http://localhost:8001/api/graph/data');
+      if (!response.ok) throw new Error('Failed to load graph');
+      const data = await response.json();
+      setGraphData(data);
+      return data;
+    } catch (error) {
+      throw error;
+    } finally {
+      setLoading(false);
     }
+  }, [setGraphData]);
+
+  return { loadGraph, loading };
+}
+
+export function useSaveGraphToApi() {
+  const [loading, setLoading] = useState(false);
+  const nodes = useGraphStore((state) => state.nodes);
+  const edges = useGraphStore((state) => state.edges);
+
+  const saveGraph = useCallback(async () => {
+    setLoading(true);
+    try {
+      const response = await fetch('http://localhost:8001/api/graph/data', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ nodes, edges }),
+      });
+      if (!response.ok) throw new Error('Failed to save graph');
+      const data = await response.json();
+      return data;
+    } catch (error) {
+      throw error;
+    } finally {
+      setLoading(false);
+    }
+  }, [nodes, edges]);
+
+  return { saveGraph, loading };
+}
+
+export function useApiConnection() {
+  const [connected, setConnected] = useState<boolean>(false);
+  const [checking, setChecking] = useState<boolean>(true);
+
+  useEffect(() => {
+    const checkConnection = async () => {
+      try {
+        const response = await fetch('http://localhost:8001/health');
+        setConnected(response.ok);
+      } catch {
+        setConnected(false);
+      } finally {
+        setChecking(false);
+      }
+    };
+
+    checkConnection();
+    const interval = setInterval(checkConnection, 30000); // Check every 30s
+
+    return () => clearInterval(interval);
   }, []);
 
-  return { connected, checkConnection };
+  return { connected, checking };
 }

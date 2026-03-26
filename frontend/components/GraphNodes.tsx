@@ -10,16 +10,16 @@ import { useGraphStore } from '@/stores/graphStore';
 const tempObject = new THREE.Object3D();
 const tempColor = new THREE.Color();
 
-// 🎯 Colors
-const SILVER_DEFAULT = new THREE.Color('#9CA3AF'); // darker metallic grey
-const GOLD_HOVER = new THREE.Color('#FFD700');  // bright shiny silver
+const WHITE = '#ffffff';
+const HOVER = '#f0f9ff';
+const GOLD = '#fbbf24';
 
 export default function GraphNodes() {
-  const nodes = useGraphStore((state) => state.nodes);
-  const selectedNodeId = useGraphStore((state) => state.selectedNodeId);
-  const hoveredNodeId = useGraphStore((state) => state.hoveredNodeId);
-  const setSelectedNode = useGraphStore((state) => state.setSelectedNode);
-  const setHoveredNode = useGraphStore((state) => state.setHoveredNode);
+  const nodes = useGraphStore((s) => s.nodes);
+  const selectedNodeId = useGraphStore((s) => s.selectedNodeId);
+  const hoveredNodeId = useGraphStore((s) => s.hoveredNodeId);
+  const setSelectedNode = useGraphStore((s) => s.setSelectedNode);
+  const setHoveredNode = useGraphStore((s) => s.setHoveredNode);
 
   const meshRef = useRef<THREE.InstancedMesh>(null);
   const nodeLookupRef = useRef(nodes);
@@ -31,96 +31,74 @@ export default function GraphNodes() {
 
   useEffect(() => {
     activeStateRef.current = { selectedNodeId, hoveredNodeId };
-  }, [hoveredNodeId, selectedNodeId]);
+  }, [selectedNodeId, hoveredNodeId]);
 
   const baseScales = useMemo(
-    () => nodes.map((node) => NODE_CONFIG.baseSize * (node.size ?? 1)),
-    [nodes]
+    () => nodes.map((n) => NODE_CONFIG.baseSize * (n.size ?? 1)),
+    [nodes],
   );
 
-  // 🔹 Initial setup
+  // Initialize nodes
   useEffect(() => {
     const mesh = meshRef.current;
     if (!mesh) return;
 
-    nodes.forEach((node, index) => {
+    nodes.forEach((node, i) => {
       tempObject.position.set(...node.position);
-      tempObject.scale.setScalar(baseScales[index]);
+      tempObject.scale.setScalar(baseScales[i]);
       tempObject.updateMatrix();
 
-      mesh.setMatrixAt(index, tempObject.matrix);
-
-      // Default silver
-      mesh.setColorAt(index, tempColor.copy(SILVER_DEFAULT));
+      mesh.setMatrixAt(i, tempObject.matrix);
+      mesh.setColorAt(i, tempColor.set(WHITE));
     });
 
     mesh.instanceMatrix.needsUpdate = true;
-    if (mesh.instanceColor) {
-      mesh.instanceColor.needsUpdate = true;
-    }
-  }, [baseScales, nodes]);
+    if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
+  }, [nodes, baseScales]);
 
-  // 🔥 Animation loop
+  // Animation loop
   useFrame((state) => {
     const mesh = meshRef.current;
     if (!mesh) return;
 
     const elapsed = state.clock.getElapsedTime();
-    const activeState = activeStateRef.current;
+    const { selectedNodeId: selId, hoveredNodeId: hovId } =
+      activeStateRef.current;
 
-    nodeLookupRef.current.forEach((node, index) => {
-      const baseScale = baseScales[index];
-      const isSelected = node.id === activeState.selectedNodeId;
-      const isHovered = node.id === activeState.hoveredNodeId;
+    nodeLookupRef.current.forEach((node, i) => {
+      const selected = node.id === selId;
+      const hovered = !selected && node.id === hovId;
 
-      const pulse = isSelected
-        ? 1 + Math.sin(elapsed * 3.5) * 0.06
-        : isHovered
-          ? 1.1
-          : 1;
+      const pulse = selected
+        ? 1 + Math.sin(elapsed * 3.5) * 0.15
+        : 1;
 
       const scale =
-        baseScale *
-        (isSelected
+        baseScales[i] *
+        (selected
           ? NODE_CONFIG.selectedScale
-          : isHovered
-            ? NODE_CONFIG.hoverScale
-            : 1) *
+          : hovered
+          ? NODE_CONFIG.hoverScale
+          : 1) *
         pulse;
 
       tempObject.position.set(...node.position);
       tempObject.scale.setScalar(scale);
       tempObject.updateMatrix();
-      mesh.setMatrixAt(index, tempObject.matrix);
 
-      // 🎯 ONLY hovered/selected node becomes gold
-      if (isHovered || isSelected) {
-        mesh.setColorAt(index, tempColor.copy(GOLD_HOVER));
-      } else {
-        mesh.setColorAt(index, tempColor.copy(SILVER_DEFAULT));
-      }
+      mesh.setMatrixAt(i, tempObject.matrix);
+
+      const color = selected ? GOLD : hovered ? HOVER : WHITE;
+      mesh.setColorAt(i, tempColor.set(color));
     });
 
     mesh.instanceMatrix.needsUpdate = true;
-
-    if (mesh.instanceColor) {
-      mesh.instanceColor.needsUpdate = true;
-    }
-
-    // ✨ Glow boost (global emissive hack)
-    const anyHovered = activeState.hoveredNodeId !== null;
-
-    if (mesh.material instanceof THREE.MeshStandardMaterial) {
-      mesh.material.emissiveIntensity = anyHovered ? 1.5 : 0.2;
-    }
+    if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
   });
 
-  const getNodeFromEvent = (
-    event: ThreeEvent<MouseEvent | PointerEvent>
-  ) => {
-    const instanceId = event.instanceId;
-    if (instanceId === undefined) return null;
-    return nodeLookupRef.current[instanceId] ?? null;
+  const getNode = (e: ThreeEvent<MouseEvent | PointerEvent>) => {
+    const id = e.instanceId;
+    return id !== undefined ? nodeLookupRef.current[id] ?? null : null;
   };
 
   if (nodes.length === 0) return null;
@@ -130,16 +108,17 @@ export default function GraphNodes() {
       ref={meshRef}
       args={[undefined, undefined, nodes.length]}
       frustumCulled={false}
-      onClick={(event) => {
-        event.stopPropagation();
-        const node = getNodeFromEvent(event);
+      onClick={(e) => {
+        e.stopPropagation();
+        const node = getNode(e);
         if (!node) return;
         setSelectedNode(node.id === selectedNodeId ? null : node.id);
       }}
-      onPointerMove={(event) => {
-        event.stopPropagation();
-        const node = getNodeFromEvent(event);
+      onPointerMove={(e) => {
+        e.stopPropagation();
+        const node = getNode(e);
         if (!node) return;
+
         setHoveredNode(node.id);
         document.body.style.cursor = 'pointer';
       }}
@@ -152,13 +131,10 @@ export default function GraphNodes() {
         args={[1, NODE_CONFIG.segments, NODE_CONFIG.segments]}
       />
 
-      {/* ✨ Material tuned for metallic + glow */}
-      <meshStandardMaterial
+      {/* PERFECT MATERIAL FOR GRAPH VISUALIZATION */}
+      <meshPhongMaterial
         vertexColors
-        metalness={0.9}   // high metallic = realistic silver
-        roughness={0.25}  // low roughness = shiny surface
-        emissive="#ffffff"
-        emissiveIntensity={0.05} 
+        shininess={80}
       />
     </instancedMesh>
   );
