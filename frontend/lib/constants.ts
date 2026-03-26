@@ -2,72 +2,99 @@ import type { NodeType } from '@/types/graph';
 
 export const SCENE_CONFIG = {
   camera: {
-    fov: 52,
+    fov: 60,
     near: 0.1,
     far: 1000,
-    initialPosition: [0, 6, 34] as [number, number, number],
+    initialPosition: [0, 25, 50] as [number, number, number],
   },
   controls: {
     enableDamping: true,
-    dampingFactor: 0.08,
-    rotateSpeed: 0.5,
-    zoomSpeed: 0.85,
-    minDistance: 12,
-    maxDistance: 90,
-    maxPolarAngle: Math.PI * 0.92,
+    dampingFactor: 0.05,
+    rotateSpeed: 0.6,
+    zoomSpeed: 1.0,
+    minDistance: 15,
+    maxDistance: 120,
+    maxPolarAngle: Math.PI * 0.85,
   },
   lighting: {
     ambient: {
-      intensity: 0.55,
-      color: '#dbeafe',
+      intensity: 2.2,
+      color: '#ffffff',
     },
     directional: {
-      intensity: 1.2,
+      intensity: 3.0,
       color: '#ffffff',
-      position: [8, 14, 10] as [number, number, number],
+      position: [30, 40, 30] as [number, number, number],
     },
     point: {
-      intensity: 1.6,
-      color: '#2563eb',
-      position: [-10, 4, 12] as [number, number, number],
+      intensity: 2.5,
+      color: '#8b5cf6',
+      position: [0, 25, 0] as [number, number, number],
     },
   },
-  fog: {
-    color: '#0b0f19',
-    density: 0.04,
+  grid: {
+    size: 150,
+    divisions: 30,
+    colorCenterLine: '#64748b',
+    colorGrid: '#475569',
   },
-  background: '#0b0f19',
+  fog: {
+    color: '#0f172a',
+    density: 0.015,
+  },
+  background: '#0f172a',
 } as const;
 
 export const NODE_CONFIG = {
-  baseSize: 0.58,
-  hoverScale: 1.22,
-  selectedScale: 1.38,
-  segments: 7,
-  metalness: 0.18,
-  roughness: 0.42,
-  emissiveIntensity: 0.18,
+  baseSize: 1.0,        // was 0.6 — bigger nodes
+  hoverScale: 1.4,
+  selectedScale: 1.7,
+  segments: 16,
+  metalness: 0.15,      // lower metalness = brighter silver appearance
+  roughness: 0.25,      // slight roughness for matte silver
+  emissiveIntensity: 0, // zero — no emissive so nodes don't self-colour
 } as const;
 
 export const EDGE_CONFIG = {
-  baseColor: '#334155',
-  activeColor: '#60a5fa',
-  opacity: 0.34,
+  baseColor: '#94a3b8',
+  selectedColor: '#3b82f6',
+  hoveredColor: '#60a5fa',
+  dependencyColor: '#10b981',
+  devDependencyColor: '#f59e0b',
+  criticalColor: '#ef4444',
+  opacity: 0.8,
+  selectedOpacity: 1.0,
 } as const;
 
+// These are used ONLY for the Inspector panel dots/badges and edge colouring.
+// GraphNodes ignores these — all nodes render silver unless selected.
 export const NODE_COLORS: Record<NodeType, string> = {
-  service: '#10b981',
-  library: '#60a5fa',
-  repository: '#a78bfa',
-  database: '#f59e0b',
-  api: '#22d3ee',
-  server: '#94a3b8',
-  ip: '#fb7185',
-  threat: '#ef4444',
-  vulnerability: '#f97316',
+  service:       '#22d3ee',
+  library:       '#a78bfa',
+  repository:    '#f472b6',
+  database:      '#fbbf24',
+  api:           '#34d399',
+  server:        '#60a5fa',
+  ip:            '#fb923c',
+  threat:        '#f87171',
+  vulnerability: '#e879f9',
+};
+
+export const NODE_EMISSIVE: Record<NodeType, string> = {
+  service:       '#164e63',
+  library:       '#4c1d95',
+  repository:    '#831843',
+  database:      '#78350f',
+  api:           '#064e3b',
+  server:        '#1e3a8a',
+  ip:            '#7c2d12',
+  threat:        '#7f1d1d',
+  vulnerability: '#701a75',
 };
 
 export const PERFORMANCE = {
   maxNodes: 120,
   maxEdges: 240,
+  simulationStepInterval: 1 / 60,
+  maxSimulationTicks: 0,
 } as const;

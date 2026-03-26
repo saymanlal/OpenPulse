@@ -2,9 +2,7 @@
 
 import { Suspense } from 'react';
 import { Canvas } from '@react-three/fiber';
-
 import { SCENE_CONFIG } from '@/lib/constants';
-
 import Scene from './Scene';
 
 function LoadingFallback() {
@@ -26,8 +24,12 @@ export default function Canvas3D() {
             near: SCENE_CONFIG.camera.near,
             far: SCENE_CONFIG.camera.far,
           }}
-          gl={{ antialias: true, alpha: false, powerPreference: 'high-performance' }}
-          dpr={[1, 1.75]}
+          gl={{
+            antialias: true,
+            alpha: false,
+            powerPreference: 'high-performance',
+          }}
+          dpr={[1, 1.5]}
         >
           <Scene />
         </Canvas>
