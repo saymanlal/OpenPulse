@@ -1,14 +1,16 @@
 'use client';
 
-import { useMemo, useState } from 'react';
-import { NODE_COLORS } from '@/lib/constants';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { ECOSYSTEM_COLORS, NODE_COLORS } from '@/lib/constants';
 import { useGraphStore } from '@/stores/graphStore';
 import type { NodeType } from '@/types/graph';
 
+// ── Helpers ────────────────────────────────────────────────────────── //
+
 function riskTone(v?: number) {
-  if (v === undefined) return { label: 'Unknown', color: 'bg-slate-500', hex: '#64748b' };
-  if (v >= 0.7)        return { label: 'High',    color: 'bg-rose-500',  hex: '#f43f5e' };
-  if (v >= 0.4)        return { label: 'Medium',  color: 'bg-amber-400', hex: '#fbbf24' };
+  if (v === undefined) return { label: 'Unknown', color: 'bg-slate-500',   hex: '#64748b' };
+  if (v >= 0.7)        return { label: 'High',    color: 'bg-rose-500',    hex: '#f43f5e' };
+  if (v >= 0.4)        return { label: 'Medium',  color: 'bg-amber-400',   hex: '#fbbf24' };
   return                      { label: 'Low',     color: 'bg-emerald-400', hex: '#34d399' };
 }
 
@@ -26,7 +28,23 @@ function RiskBar({ score }: { score: number }) {
   );
 }
 
-function CollapsibleSection({
+function EcoBadge({ eco }: { eco: string }) {
+  const color = ECOSYSTEM_COLORS[eco] ?? '#94a3b8';
+  return (
+    <span
+      className="text-[10px] px-2 py-0.5 rounded-full font-medium border"
+      style={{
+        backgroundColor: color + '22',
+        color,
+        borderColor: color + '55',
+      }}
+    >
+      {eco}
+    </span>
+  );
+}
+
+function Collapse({
   title, children, defaultOpen = false,
 }: { title: string; children: React.ReactNode; defaultOpen?: boolean }) {
   const [open, setOpen] = useState(defaultOpen);
@@ -47,46 +65,31 @@ function CollapsibleSection({
 
 function ConnList({ title, color, items, onSelect }: {
   title: string; color: string;
-  items: { id: string; name: string; type: NodeType; risk: number }[];
-  onSelect: (name: string) => void;
-}) {
-  return (
-    <div className="rounded-2xl border border-slate-800 bg-slate-950/70 p-3">
-      <p className="text-[10px] uppercase tracking-widest mb-2" style={{ color }}>{title}</p>
-      <div className="space-y-1 max-h-40 overflow-y-auto">
-        {items.map((c) => (
-          <button key={c.id} type="button" onClick={() => onSelect(c.name)}
-            className="w-full flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-slate-900 transition-colors text-left">
-            <span className="w-1.5 h-1.5 rounded-full shrink-0"
-              style={{ backgroundColor: NODE_COLORS[c.type] ?? '#6b7280' }} />
-            <span className="text-xs font-mono text-slate-300 truncate flex-1">{c.name}</span>
-            <RiskBar score={c.risk} />
-          </button>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-function ConnGroup({ title, color, nodes, onSelect }: {
-  title: string; color: string;
-  nodes: { id: string; label: string; type: NodeType; riskScore?: number }[];
+  items: { id: string; label: string; type: NodeType; riskScore?: number; ecosystem?: string }[];
   onSelect: (id: string) => void;
 }) {
-  if (nodes.length === 0) return null;
+  if (items.length === 0) return null;
   return (
-    <div>
-      <p className="text-[10px] uppercase tracking-widest mb-1.5" style={{ color }}>
-        {title} ({nodes.length})
+    <div className="rounded-2xl border border-slate-800 bg-slate-950/70 p-3">
+      <p className="text-[10px] uppercase tracking-widest mb-2" style={{ color }}>
+        {title} ({items.length})
       </p>
-      <div className="space-y-1 max-h-32 overflow-y-auto">
-        {nodes.map((n) => (
-          <button key={n.id} type="button" onClick={() => onSelect(n.id)}
-            className="w-full flex items-center gap-2 px-2 py-1 rounded-lg hover:bg-slate-900 transition-colors text-left">
+      <div className="space-y-1 max-h-40 overflow-y-auto">
+        {items.map((item) => (
+          <button key={item.id} type="button" onClick={() => onSelect(item.id)}
+            className="w-full flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-slate-900 transition-colors text-left">
             <span className="w-1.5 h-1.5 rounded-full shrink-0"
-              style={{ backgroundColor: NODE_COLORS[n.type] ?? '#6b7280' }} />
-            <span className="text-xs font-mono text-slate-300 truncate flex-1">{n.label}</span>
-            {n.riskScore !== undefined && <RiskBar score={n.riskScore} />}
+              style={{ backgroundColor: NODE_COLORS[item.type] ?? '#6b7280' }} />
+            <span className="text-xs font-mono text-slate-200 truncate flex-1">{item.label}</span>
+            {item.ecosystem && (
+              <span className="text-[9px] shrink-0"
+                style={{ color: ECOSYSTEM_COLORS[item.ecosystem] ?? '#94a3b8' }}>
+                {item.ecosystem}
+              </span>
+            )}
+            {item.riskScore !== undefined && (
+              <div className="w-16 shrink-0"><RiskBar score={item.riskScore} /></div>
+            )}
           </button>
         ))}
       </div>
@@ -95,6 +98,8 @@ function ConnGroup({ title, color, nodes, onSelect }: {
 }
 
 type Tab = 'overview' | 'risk' | 'graph' | 'node';
+
+// ── Inspector ─────────────────────────────────────────────────────── //
 
 export default function Inspector() {
   const nodes           = useGraphStore((s) => s.nodes);
@@ -110,70 +115,88 @@ export default function Inspector() {
     [nodes, selectedNodeId],
   );
 
-  // Auto-switch to node tab when selection changes
-  const prevSelectedRef = useRef<string | null>(null);
+  // Auto-switch to node tab
+  const prevSelRef = useRef<string | null>(null);
   useEffect(() => {
-    if (selectedNodeId && selectedNodeId !== prevSelectedRef.current) {
-      setTab('node');
-    }
-    prevSelectedRef.current = selectedNodeId;
+    if (selectedNodeId && selectedNodeId !== prevSelRef.current) setTab('node');
+    prevSelRef.current = selectedNodeId;
   }, [selectedNodeId]);
 
-  const nodeConnections = useMemo(() => {
-    if (!selectedNode) return { incoming: [], outgoing: [] };
+  // Connections for selected node
+  const connections = useMemo(() => {
+    if (!selectedNode) return { outgoing: [], incoming: [] };
     const outgoing = edges
       .filter((e) => e.source === selectedNode.id)
       .map((e) => {
         const n = nodes.find((x) => x.id === e.target);
-        return { id: e.id, name: n?.label ?? e.target, type: (n?.type ?? 'library') as NodeType, risk: n?.riskScore ?? 0 };
+        return {
+          id: e.id,
+          label: n?.label ?? e.target,
+          type: (n?.type ?? 'library') as NodeType,
+          riskScore: n?.riskScore,
+          ecosystem: n?.metadata?.ecosystem as string | undefined,
+        };
       });
     const incoming = edges
       .filter((e) => e.target === selectedNode.id)
       .map((e) => {
         const n = nodes.find((x) => x.id === e.source);
-        return { id: e.id, name: n?.label ?? e.source, type: (n?.type ?? 'library') as NodeType, risk: n?.riskScore ?? 0 };
+        return {
+          id: e.id,
+          label: n?.label ?? e.source,
+          type: (n?.type ?? 'library') as NodeType,
+          riskScore: n?.riskScore,
+          ecosystem: n?.metadata?.ecosystem as string | undefined,
+        };
       });
     return { outgoing, incoming };
   }, [selectedNode, edges, nodes]);
 
-  // ── FIXED: search now shows label text + risk bar ──
+  // Search results
   const searchResults = useMemo(() => {
     const q = search.trim().toLowerCase();
     if (!q) return [];
-    return nodes
-      .filter((n) => n.label.toLowerCase().includes(q))
-      .slice(0, 12);
+    return nodes.filter((n) => n.label.toLowerCase().includes(q)).slice(0, 15);
   }, [search, nodes]);
 
+  // Stats
   const summary = useMemo(() => {
-    const avgRisk = nodes.length > 0
+    const avgRisk = nodes.length
       ? nodes.reduce((s, n) => s + (n.riskScore ?? 0), 0) / nodes.length : 0;
     return { nodes: nodes.length, edges: edges.length, avgRisk };
   }, [nodes, edges.length]);
 
+  // Type counts
   const typeCounts = useMemo(() => {
     const c: Record<string, number> = {};
     nodes.forEach((n) => { c[n.type] = (c[n.type] ?? 0) + 1; });
     return Object.entries(c).sort((a, b) => b[1] - a[1]);
   }, [nodes]);
 
+  // Ecosystem counts
+  const ecoCounts = useMemo(() => {
+    const c: Record<string, number> = {};
+    nodes.forEach((n) => {
+      const eco = (n.metadata?.ecosystem as string) ?? 'unknown';
+      c[eco] = (c[eco] ?? 0) + 1;
+    });
+    return Object.entries(c).sort((a, b) => b[1] - a[1]);
+  }, [nodes]);
+
+  // Risk ranking
   const riskRanking = useMemo(() =>
     [...nodes]
       .filter((n) => !n.metadata?.isRoot)
       .sort((a, b) => (b.riskScore ?? 0) - (a.riskScore ?? 0))
       .slice(0, 20),
-    [nodes],
-  );
+  [nodes]);
 
-  const connectivityGroups = useMemo(() => {
-    const independent = nodes.filter((n) =>
-      !edges.some((e) => e.source === n.id || e.target === n.id));
-    const onlyDepends = nodes.filter((n) =>
-      edges.some((e) => e.source === n.id) && !edges.some((e) => e.target === n.id));
-    const onlyUsedBy  = nodes.filter((n) =>
-      !edges.some((e) => e.source === n.id) && edges.some((e) => e.target === n.id));
-    const both        = nodes.filter((n) =>
-      edges.some((e) => e.source === n.id) && edges.some((e) => e.target === n.id));
+  // Graph connectivity groups
+  const connectivity = useMemo(() => {
+    const independent  = nodes.filter((n) => !edges.some((e) => e.source === n.id || e.target === n.id));
+    const onlyDepends  = nodes.filter((n) => edges.some((e) => e.source === n.id) && !edges.some((e) => e.target === n.id));
+    const onlyUsedBy   = nodes.filter((n) => !edges.some((e) => e.source === n.id) && edges.some((e) => e.target === n.id));
+    const both         = nodes.filter((n) => edges.some((e) => e.source === n.id) && edges.some((e) => e.target === n.id));
     return { independent, onlyDepends, onlyUsedBy, both };
   }, [nodes, edges]);
 
@@ -181,15 +204,15 @@ export default function Inspector() {
 
   const TABS: { id: Tab; label: string }[] = [
     { id: 'overview', label: 'Overview' },
-    { id: 'risk',     label: 'Risk'     },
-    { id: 'graph',    label: 'Graph'    },
-    { id: 'node',     label: 'Node'     },
+    { id: 'risk',     label: 'Risk' },
+    { id: 'graph',    label: 'Graph' },
+    { id: 'node',     label: 'Node' },
   ];
 
   return (
-    <aside className="flex h-full flex-col border-l border-slate-900 bg-slate-950/95 backdrop-blur-xl overflow-hidden">
+    <aside className="flex h-full flex-col border-l border-slate-800 bg-slate-950/95 backdrop-blur-xl overflow-hidden">
 
-      {/* tab nav */}
+      {/* ── Tab nav ───────────────────────────────────────────────── */}
       <div className="shrink-0 border-b border-slate-800">
         <div className="flex">
           {TABS.map((t) => (
@@ -207,7 +230,7 @@ export default function Inspector() {
           ))}
         </div>
 
-        {/* search bar */}
+        {/* Search bar */}
         <div className="relative px-3 pb-2.5 pt-2">
           <svg className="absolute left-5 top-[18px] w-3.5 h-3.5 text-slate-500 pointer-events-none"
             fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -217,7 +240,7 @@ export default function Inspector() {
           <input
             type="text" value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search dependency…"
+            placeholder="Search package name…"
             className="w-full bg-slate-900 border border-slate-700 rounded-xl pl-8 pr-7 py-1.5 text-xs text-slate-200 placeholder-slate-600 focus:outline-none focus:border-indigo-500 transition-colors"
           />
           {search && (
@@ -231,7 +254,7 @@ export default function Inspector() {
         </div>
       </div>
 
-      {/* ── search results overlay ── */}
+      {/* ── Search results overlay ────────────────────────────────── */}
       {search.trim() ? (
         <div className="flex-1 overflow-y-auto px-3 py-3 space-y-1">
           <p className="text-[10px] uppercase tracking-widest text-slate-500 mb-2">
@@ -240,33 +263,17 @@ export default function Inspector() {
               : `${searchResults.length} result${searchResults.length !== 1 ? 's' : ''}`}
           </p>
           {searchResults.map((node) => (
-            <button
-              key={node.id}
-              type="button"
-              onClick={() => {
-                setSelectedNode(node.id);
-                setSearch('');
-                setTab('node');
-              }}
-              className="w-full flex items-center gap-2 px-3 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-800 hover:border-slate-600 transition-colors text-left"
-            >
-              {/* coloured dot for type */}
-              <span
-                className="w-2 h-2 rounded-full shrink-0"
-                style={{ backgroundColor: NODE_COLORS[node.type as NodeType] ?? '#6b7280' }}
-              />
-              {/* package name — this is what was missing before */}
-              <span className="text-xs font-mono text-slate-100 truncate flex-1">
-                {node.label}
-              </span>
-              {/* type badge */}
-              <span className="text-[10px] text-slate-500 capitalize shrink-0 mr-1">
-                {node.type}
-              </span>
-              {/* risk bar */}
-              <div className="w-20 shrink-0">
-                <RiskBar score={node.riskScore ?? 0} />
-              </div>
+            <button key={node.id} type="button"
+              onClick={() => { setSelectedNode(node.id); setSearch(''); setTab('node'); }}
+              className="w-full flex items-center gap-2 px-3 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-800 hover:border-slate-600 transition-colors text-left">
+              <span className="w-2 h-2 rounded-full shrink-0"
+                style={{ backgroundColor: NODE_COLORS[node.type as NodeType] ?? '#6b7280' }} />
+              <span className="text-xs font-mono text-slate-100 truncate flex-1">{node.label}</span>
+              {node.metadata?.ecosystem && (
+                <EcoBadge eco={node.metadata.ecosystem as string} />
+              )}
+              <span className="text-[10px] text-slate-500 capitalize shrink-0">{node.type}</span>
+              <div className="w-16 shrink-0"><RiskBar score={node.riskScore ?? 0} /></div>
             </button>
           ))}
         </div>
@@ -275,7 +282,7 @@ export default function Inspector() {
 
         <div className="flex-1 overflow-y-auto px-3 py-3 space-y-3">
 
-          {/* ══ OVERVIEW ══ */}
+          {/* ═══ OVERVIEW ═══ */}
           {tab === 'overview' && (
             <>
               <div className="grid grid-cols-3 gap-2 text-center text-xs">
@@ -291,7 +298,30 @@ export default function Inspector() {
                 ))}
               </div>
 
-              <CollapsibleSection title="📦 Node types" defaultOpen>
+              {/* Ecosystem breakdown */}
+              {ecoCounts.length > 0 && (
+                <Collapse title="🌐 Ecosystems" defaultOpen>
+                  <div className="space-y-2 pt-1">
+                    {ecoCounts.map(([eco, count]) => (
+                      <div key={eco} className="flex items-center gap-2">
+                        <span className="w-2 h-2 rounded-full shrink-0"
+                          style={{ backgroundColor: ECOSYSTEM_COLORS[eco] ?? '#94a3b8' }} />
+                        <span className="text-xs text-slate-400 flex-1 capitalize">{eco}</span>
+                        <div className="w-16 h-1 bg-slate-800 rounded-full overflow-hidden">
+                          <div className="h-full rounded-full"
+                            style={{
+                              width: `${(count / summary.nodes) * 100}%`,
+                              backgroundColor: ECOSYSTEM_COLORS[eco] ?? '#94a3b8',
+                            }} />
+                        </div>
+                        <span className="text-xs text-slate-400 font-mono w-5 text-right">{count}</span>
+                      </div>
+                    ))}
+                  </div>
+                </Collapse>
+              )}
+
+              <Collapse title="📦 Node types" defaultOpen>
                 <div className="space-y-2 pt-1">
                   {typeCounts.map(([type, count]) => (
                     <div key={type} className="flex items-center gap-2">
@@ -309,12 +339,12 @@ export default function Inspector() {
                     </div>
                   ))}
                 </div>
-              </CollapsibleSection>
+              </Collapse>
 
               <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-3">
                 <p className="text-[10px] uppercase tracking-widest text-slate-500 mb-2">Controls</p>
                 <div className="grid grid-cols-2 gap-x-3 gap-y-1 text-xs">
-                  {[['Drag','Rotate'],['Scroll','Zoom'],['Right-drag','Pan'],['Click node','Inspect']].map(([k,v]) => (
+                  {[['Drag','Rotate'],['Scroll','Zoom'],['Right-drag','Pan'],['Click node','Inspect']].map(([k, v]) => (
                     <div key={k} className="flex gap-1">
                       <span className="text-slate-300">{k}</span>
                       <span className="text-slate-500">— {v}</span>
@@ -325,7 +355,7 @@ export default function Inspector() {
             </>
           )}
 
-          {/* ══ RISK ══ */}
+          {/* ═══ RISK ═══ */}
           {tab === 'risk' && (
             <>
               <p className="text-[10px] uppercase tracking-widest text-slate-500">
@@ -341,51 +371,42 @@ export default function Inspector() {
                     <span className="w-2 h-2 rounded-full shrink-0"
                       style={{ backgroundColor: NODE_COLORS[node.type as NodeType] ?? '#6b7280' }} />
                     <span className="text-xs font-mono text-slate-300 truncate flex-1">{node.label}</span>
-                    <div className="w-20 shrink-0"><RiskBar score={node.riskScore ?? 0} /></div>
+                    {node.metadata?.ecosystem && (
+                      <span className="text-[9px] shrink-0"
+                        style={{ color: ECOSYSTEM_COLORS[node.metadata.ecosystem as string] }}>
+                        {node.metadata.ecosystem as string}
+                      </span>
+                    )}
+                    <div className="w-16 shrink-0"><RiskBar score={node.riskScore ?? 0} /></div>
                   </button>
                 ))
               }
             </>
           )}
 
-          {/* ══ GRAPH ══ */}
+          {/* ═══ GRAPH ═══ */}
           {tab === 'graph' && (
             <>
-              <CollapsibleSection title="🔗 Independent (no connections)" defaultOpen>
-                {connectivityGroups.independent.length === 0
-                  ? <p className="text-xs text-slate-600 italic pt-1">None</p>
-                  : <ConnGroup title="" color="#64748b" nodes={connectivityGroups.independent}
-                      onSelect={(id) => { setSelectedNode(id); setTab('node'); }} />
-                }
-              </CollapsibleSection>
-
-              <CollapsibleSection title="➡️ Only depends on others" defaultOpen>
-                {connectivityGroups.onlyDepends.length === 0
-                  ? <p className="text-xs text-slate-600 italic pt-1">None</p>
-                  : <ConnGroup title="" color="#34d399" nodes={connectivityGroups.onlyDepends}
-                      onSelect={(id) => { setSelectedNode(id); setTab('node'); }} />
-                }
-              </CollapsibleSection>
-
-              <CollapsibleSection title="⬅️ Only used by others" defaultOpen>
-                {connectivityGroups.onlyUsedBy.length === 0
-                  ? <p className="text-xs text-slate-600 italic pt-1">None</p>
-                  : <ConnGroup title="" color="#fb923c" nodes={connectivityGroups.onlyUsedBy}
-                      onSelect={(id) => { setSelectedNode(id); setTab('node'); }} />
-                }
-              </CollapsibleSection>
-
-              <CollapsibleSection title="↔️ Both depends & used by" defaultOpen>
-                {connectivityGroups.both.length === 0
-                  ? <p className="text-xs text-slate-600 italic pt-1">None</p>
-                  : <ConnGroup title="" color="#a78bfa" nodes={connectivityGroups.both}
-                      onSelect={(id) => { setSelectedNode(id); setTab('node'); }} />
-                }
-              </CollapsibleSection>
+              <Collapse title="🔗 Independent (no connections)" defaultOpen>
+                <ConnList title="" color="#64748b" items={connectivity.independent.map((n) => ({ id: n.id, label: n.label, type: n.type as NodeType, riskScore: n.riskScore, ecosystem: n.metadata?.ecosystem as string }))}
+                  onSelect={(id) => { setSelectedNode(id); setTab('node'); }} />
+              </Collapse>
+              <Collapse title="➡️ Depends on others" defaultOpen>
+                <ConnList title="" color="#34d399" items={connectivity.onlyDepends.map((n) => ({ id: n.id, label: n.label, type: n.type as NodeType, riskScore: n.riskScore, ecosystem: n.metadata?.ecosystem as string }))}
+                  onSelect={(id) => { setSelectedNode(id); setTab('node'); }} />
+              </Collapse>
+              <Collapse title="⬅️ Used by others" defaultOpen>
+                <ConnList title="" color="#fb923c" items={connectivity.onlyUsedBy.map((n) => ({ id: n.id, label: n.label, type: n.type as NodeType, riskScore: n.riskScore, ecosystem: n.metadata?.ecosystem as string }))}
+                  onSelect={(id) => { setSelectedNode(id); setTab('node'); }} />
+              </Collapse>
+              <Collapse title="↔️ Both depends & used" defaultOpen>
+                <ConnList title="" color="#a78bfa" items={connectivity.both.map((n) => ({ id: n.id, label: n.label, type: n.type as NodeType, riskScore: n.riskScore, ecosystem: n.metadata?.ecosystem as string }))}
+                  onSelect={(id) => { setSelectedNode(id); setTab('node'); }} />
+              </Collapse>
             </>
           )}
 
-          {/* ══ NODE ══ */}
+          {/* ═══ NODE ═══ */}
           {tab === 'node' && !selectedNode && (
             <div className="flex flex-col items-center justify-center h-40 text-center gap-2">
               <div className="w-8 h-8 rounded-full border-2 border-dashed border-slate-700 flex items-center justify-center">
@@ -397,10 +418,10 @@ export default function Inspector() {
 
           {tab === 'node' && selectedNode && (
             <div className="space-y-3">
-              {/* header */}
+              {/* Header */}
               <div className="flex items-start justify-between gap-2">
                 <div className="min-w-0">
-                  <p className="text-[10px] uppercase tracking-widest text-slate-500">Selected</p>
+                  <p className="text-[10px] uppercase tracking-widest text-slate-500">Package</p>
                   <h3 className="mt-0.5 break-all text-sm font-semibold font-mono text-yellow-300">
                     {selectedNode.label}
                   </h3>
@@ -412,18 +433,21 @@ export default function Inspector() {
                 </button>
               </div>
 
-              {/* type + badges */}
+              {/* Badges row */}
               <div className="flex flex-wrap items-center gap-1.5">
                 <span className="w-2.5 h-2.5 rounded-full shrink-0"
                   style={{ backgroundColor: NODE_COLORS[selectedNode.type as NodeType] }} />
                 <span className="text-xs px-2 py-0.5 rounded-full font-medium capitalize border"
                   style={{
-                    backgroundColor: (NODE_COLORS[selectedNode.type as NodeType]) + '22',
-                    color: NODE_COLORS[selectedNode.type as NodeType],
-                    borderColor: (NODE_COLORS[selectedNode.type as NodeType]) + '55',
+                    backgroundColor: (NODE_COLORS[selectedNode.type as NodeType] ?? '#6b7280') + '22',
+                    color:           NODE_COLORS[selectedNode.type as NodeType] ?? '#6b7280',
+                    borderColor:     (NODE_COLORS[selectedNode.type as NodeType] ?? '#6b7280') + '55',
                   }}>
                   {selectedNode.type}
                 </span>
+                {selectedNode.metadata?.ecosystem && (
+                  <EcoBadge eco={selectedNode.metadata.ecosystem as string} />
+                )}
                 {(selectedNode.metadata?.isDev as boolean) && (
                   <span className="text-[10px] px-2 py-0.5 rounded-full bg-purple-900/40 text-purple-400 border border-purple-800/50">
                     devDep
@@ -436,7 +460,7 @@ export default function Inspector() {
                 )}
               </div>
 
-              {/* risk bar */}
+              {/* Risk bar */}
               <div className="rounded-2xl border border-slate-800 bg-slate-950/70 p-3 space-y-2">
                 <div className="flex justify-between text-xs">
                   <span className="text-slate-500">Risk score</span>
@@ -446,52 +470,43 @@ export default function Inspector() {
                 </div>
                 <div className="h-1.5 overflow-hidden rounded-full bg-slate-800">
                   <div className={`h-full rounded-full ${tone.color}`}
-                    style={{ width: `${Math.round((selectedNode.riskScore ?? 0) * 100)}%` }} />
+                    style={{ width: `${(selectedNode.riskScore ?? 0) * 100}%` }} />
                 </div>
               </div>
 
-              {/* metadata */}
-              {(selectedNode.metadata?.license || selectedNode.metadata?.version) && (
-                <div className="rounded-2xl border border-slate-800 bg-slate-950/70 p-3 space-y-1.5">
-                  <p className="text-[10px] uppercase tracking-widest text-slate-500">Package info</p>
-                  {[
-                    ['Version', selectedNode.metadata.version ? `v${selectedNode.metadata.version}` : null],
-                    ['License', selectedNode.metadata.license],
-                    ['Source',  selectedNode.metadata.source],
-                  ].filter(([, v]) => v).map(([k, v]) => (
-                    <div key={k as string} className="flex justify-between text-xs">
-                      <span className="text-slate-500">{k as string}</span>
-                      <span className="font-mono text-slate-200">{v as string}</span>
-                    </div>
-                  ))}
-                </div>
-              )}
+              {/* Package info */}
+              <div className="rounded-2xl border border-slate-800 bg-slate-950/70 p-3 space-y-1.5">
+                <p className="text-[10px] uppercase tracking-widest text-slate-500">Package info</p>
+                {[
+                  ['Name',      selectedNode.label],
+                  ['Version',   selectedNode.metadata?.version ? `v${selectedNode.metadata.version}` : null],
+                  ['Ecosystem', selectedNode.metadata?.ecosystem],
+                  ['Type',      selectedNode.type],
+                  ['Manifest',  selectedNode.metadata?.manifestPath],
+                  ['License',   selectedNode.metadata?.license],
+                ].filter(([, v]) => v).map(([k, v]) => (
+                  <div key={k as string} className="flex justify-between text-xs">
+                    <span className="text-slate-500">{k as string}</span>
+                    <span className="font-mono text-slate-200 truncate max-w-[60%] text-right">
+                      {v as string}
+                    </span>
+                  </div>
+                ))}
+              </div>
 
-              {/* depends on */}
-              {nodeConnections.outgoing.length > 0 && (
-                <ConnList
-                  title={`Depends on (${nodeConnections.outgoing.length})`}
-                  color="#34d399"
-                  items={nodeConnections.outgoing}
-                  onSelect={(name) => {
-                    const n = nodes.find((x) => x.label === name);
-                    if (n) { setSelectedNode(n.id); setTab('node'); }
-                  }}
-                />
-              )}
-
-              {/* used by */}
-              {nodeConnections.incoming.length > 0 && (
-                <ConnList
-                  title={`Used by (${nodeConnections.incoming.length})`}
-                  color="#fb923c"
-                  items={nodeConnections.incoming}
-                  onSelect={(name) => {
-                    const n = nodes.find((x) => x.label === name);
-                    if (n) { setSelectedNode(n.id); setTab('node'); }
-                  }}
-                />
-              )}
+              {/* Connections */}
+              <ConnList
+                title="Depends on"
+                color="#34d399"
+                items={connections.outgoing}
+                onSelect={(id) => { setSelectedNode(id); }}
+              />
+              <ConnList
+                title="Used by"
+                color="#fb923c"
+                items={connections.incoming}
+                onSelect={(id) => { setSelectedNode(id); }}
+              />
             </div>
           )}
 
@@ -500,6 +515,3 @@ export default function Inspector() {
     </aside>
   );
 }
-
-// needed for the useEffect inside Inspector
-import { useEffect, useRef } from 'react';

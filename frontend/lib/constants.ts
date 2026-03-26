@@ -4,7 +4,7 @@ export const SCENE_CONFIG = {
   camera: {
     fov: 60,
     near: 0.1,
-    far: 1000,
+    far: 2000,
     initialPosition: [0, 25, 50] as [number, number, number],
   },
   controls: {
@@ -13,7 +13,7 @@ export const SCENE_CONFIG = {
     rotateSpeed: 0.6,
     zoomSpeed: 1.0,
     minDistance: 15,
-    maxDistance: 120,
+    maxDistance: 300,
     maxPolarAngle: Math.PI * 0.85,
   },
   lighting: {
@@ -33,26 +33,26 @@ export const SCENE_CONFIG = {
     },
   },
   grid: {
-    size: 150,
-    divisions: 30,
-    colorCenterLine: '#64748b',
-    colorGrid: '#475569',
+    size: 300,
+    divisions: 40,
+    colorCenterLine: '#334155',
+    colorGrid: '#1e293b',
   },
   fog: {
     color: '#0f172a',
-    density: 0.015,
+    density: 0.008,
   },
   background: '#0f172a',
 } as const;
 
 export const NODE_CONFIG = {
-  baseSize: 1.0,        // was 0.6 — bigger nodes
+  baseSize: 1.0,
   hoverScale: 1.4,
   selectedScale: 1.7,
   segments: 16,
-  metalness: 0.15,      // lower metalness = brighter silver appearance
-  roughness: 0.25,      // slight roughness for matte silver
-  emissiveIntensity: 0, // zero — no emissive so nodes don't self-colour
+  metalness: 0.15,
+  roughness: 0.25,
+  emissiveIntensity: 0,
 } as const;
 
 export const EDGE_CONFIG = {
@@ -62,39 +62,45 @@ export const EDGE_CONFIG = {
   dependencyColor: '#10b981',
   devDependencyColor: '#f59e0b',
   criticalColor: '#ef4444',
-  opacity: 0.8,
+  opacity: 0.75,
   selectedOpacity: 1.0,
 } as const;
 
-// These are used ONLY for the Inspector panel dots/badges and edge colouring.
-// GraphNodes ignores these — all nodes render silver unless selected.
+// ── Node type colours (used in Inspector panel only) ─────────────── //
 export const NODE_COLORS: Record<NodeType, string> = {
-  service:       '#22d3ee',
-  library:       '#a78bfa',
-  repository:    '#f472b6',
-  database:      '#fbbf24',
-  api:           '#34d399',
-  server:        '#60a5fa',
-  ip:            '#fb923c',
-  threat:        '#f87171',
-  vulnerability: '#e879f9',
+  service:       '#22d3ee',   // cyan
+  library:       '#a78bfa',   // violet
+  repository:    '#f472b6',   // pink
+  database:      '#fbbf24',   // amber
+  api:           '#34d399',   // emerald
+  server:        '#60a5fa',   // blue
+  ip:            '#fb923c',   // orange
+  threat:        '#f87171',   // red
+  vulnerability: '#e879f9',   // fuchsia
 };
 
-export const NODE_EMISSIVE: Record<NodeType, string> = {
-  service:       '#164e63',
-  library:       '#4c1d95',
-  repository:    '#831843',
-  database:      '#78350f',
-  api:           '#064e3b',
-  server:        '#1e3a8a',
-  ip:            '#7c2d12',
-  threat:        '#7f1d1d',
-  vulnerability: '#701a75',
+// ── Ecosystem colours ─────────────────────────────────────────────── //
+// Used for:  node glow colour, graph filter badges, Inspector badges
+export const ECOSYSTEM_COLORS: Record<string, string> = {
+  npm:     '#f7df1e',   // JS yellow
+  python:  '#3b82f6',   // Python blue
+  go:      '#00add8',   // Go cyan
+  rust:    '#f97316',   // Rust orange
+  unknown: '#94a3b8',   // slate
+};
+
+// Dimmer versions for emissive so nodes glow their ecosystem colour
+export const ECOSYSTEM_EMISSIVE: Record<string, string> = {
+  npm:     '#3d3600',
+  python:  '#0c1a3b',
+  go:      '#00202a',
+  rust:    '#2a1500',
+  unknown: '#1e293b',
 };
 
 export const PERFORMANCE = {
-  maxNodes: 120,
-  maxEdges: 240,
+  maxNodes: 500,
+  maxEdges: 1000,
   simulationStepInterval: 1 / 60,
   maxSimulationTicks: 0,
 } as const;
