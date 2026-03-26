@@ -3,18 +3,28 @@
 import Header from './Header';
 import Inspector from './Inspector';
 import ClientCanvasWrapper from './ClientCanvasWrapper';
+import NodeTooltip from './NodeTooltip';
 
 export default function Layout() {
   return (
     <div className="flex min-h-screen flex-col bg-slate-950 text-slate-100">
       <Header />
+
       <main
         className="grid flex-1"
-        style={{ marginTop: '57px', height: 'calc(100vh - 57px)', gridTemplateColumns: 'minmax(0,1fr) 340px' }}
+        style={{
+          marginTop: '57px',
+          height: 'calc(100vh - 57px)',
+          gridTemplateColumns: 'minmax(0,1fr) 340px',
+        }}
       >
         <section className="relative">
           <ClientCanvasWrapper />
+
+          {/* Tooltip must live OUTSIDE canvas */}
+          <NodeTooltip />
         </section>
+
         <Inspector />
       </main>
     </div>
