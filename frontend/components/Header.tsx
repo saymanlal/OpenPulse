@@ -22,29 +22,44 @@ function PackagePicker({ options, owner, repo, onSelect, onClose }: {
   onClose: () => void;
 }) {
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/70 backdrop-blur-sm"
+    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/90 backdrop-blur-md"
       onClick={onClose}>
-      <div className="bg-slate-950 border border-slate-800 rounded-2xl w-full max-w-lg p-6 shadow-2xl"
+      <div className="relative bg-black border border-white/20 rounded-2xl w-full max-w-lg p-6 shadow-2xl"
         onClick={(e) => e.stopPropagation()}>
-        <h3 className="text-base font-semibold text-white mb-1">Multiple package.json found</h3>
-        <p className="text-xs text-slate-500 mb-4">
-          <code>{owner}/{repo}</code> has {options.length} package.json files. Pick one to analyse:
+        <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-blue-500/50 to-transparent" />
+        
+        <h3 className="text-lg font-black tracking-tighter bg-gradient-to-r from-white to-white/70 bg-clip-text text-transparent mb-1">
+          MULTIPLE PACKAGES FOUND
+        </h3>
+        <p className="text-xs font-mono text-white/40 mb-4">
+          <code className="text-blue-400">{owner}/{repo}</code> contains {options.length} package.json files
         </p>
-        <div className="space-y-2 max-h-80 overflow-y-auto">
+        
+        <div className="space-y-2 max-h-80 overflow-y-auto mb-4">
           {options.map((opt) => (
             <button key={opt.path} onClick={() => onSelect(opt.path)}
-              className="w-full text-left bg-slate-900 hover:bg-slate-800 border border-slate-800 hover:border-slate-600 rounded-xl px-4 py-3 transition-colors">
-              <div className="flex items-center justify-between mb-1">
-                <span className="text-sm font-medium text-slate-100 font-mono">{opt.name}</span>
-                <span className="text-xs text-slate-500 font-mono">v{opt.version}</span>
+              className="w-full text-left group relative overflow-hidden rounded-xl border border-white/10 bg-white/5 p-4 transition-all hover:border-white/20 hover:bg-white/10">
+              <div className="relative">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-sm font-mono font-bold text-white">{opt.name}</span>
+                  <span className="text-[10px] font-mono text-white/40">v{opt.version}</span>
+                </div>
+                <div className="text-[11px] font-mono text-white/40 mb-1 truncate">{opt.path}</div>
+                {opt.description && (
+                  <div className="text-[11px] text-white/50 mb-2 line-clamp-2">{opt.description}</div>
+                )}
+                <div className="text-[10px] font-mono text-blue-400">
+                  {opt.depCount} DEPENDENCIES
+                </div>
               </div>
-              <div className="text-xs text-slate-400 font-mono mb-1">{opt.path}</div>
-              {opt.description && <div className="text-xs text-slate-500">{opt.description}</div>}
-              <div className="text-xs text-indigo-400 mt-1">{opt.depCount} dependencies</div>
             </button>
           ))}
         </div>
-        <button onClick={onClose} className="mt-4 text-xs text-slate-600 hover:text-slate-400">Cancel</button>
+        
+        <button onClick={onClose} 
+          className="text-[10px] font-mono font-bold tracking-wider text-white/40 hover:text-white/60 transition-colors">
+          CANCEL
+        </button>
       </div>
     </div>
   );
@@ -63,6 +78,8 @@ export default function Header() {
   const { saveGraph, loading: saveLoading } = useSaveGraphToApi();
   const { connected, checking }             = useApiConnection();
   const setGraphData                         = useGraphStore((s) => s.setGraphData);
+  const nodes = useGraphStore((state) => state.nodes);
+  const edges = useGraphStore((state) => state.edges);
 
   const showMessage = (msg: string, type: 'success' | 'error' = 'success') => {
     setMessage(msg);
@@ -90,10 +107,10 @@ export default function Header() {
         return;
       }
       setGraphData({ nodes: data.nodes, edges: data.edges });
-      showMessage(`✓ ${owner}/${repo} — ${data.nodes.length} packages`);
+      showMessage(`${owner}/${repo} — ${data.nodes.length} packages loaded`);
       setRepoInput('');
     } catch (err) {
-      showMessage(err instanceof Error ? err.message : 'Failed to analyse repository', 'error');
+      showMessage(err instanceof Error ? err.message : 'Analysis failed', 'error');
     } finally {
       setAnalyzing(false);
     }
@@ -101,7 +118,7 @@ export default function Header() {
 
   const handleAnalyzeRepo = () => {
     const match = repoInput.trim().match(/(?:https?:\/\/github\.com\/)?([^/]+)\/([^/\s]+)/);
-    if (!match) { showMessage('Use: owner/repo or full GitHub URL', 'error'); return; }
+    if (!match) { showMessage('Invalid format: use owner/repo or GitHub URL', 'error'); return; }
     doAnalyze(match[1], match[2]);
   };
 
@@ -113,7 +130,7 @@ export default function Header() {
   const handleLoadFromApi = async () => {
     try {
       const data = await loadGraph();
-      showMessage(`Loaded ${data.nodes.length} nodes`);
+      showMessage(`${data.nodes.length} nodes loaded from API`);
     } catch {
       showMessage('API load failed', 'error');
     }
@@ -122,7 +139,7 @@ export default function Header() {
   const handleSaveToApi = async () => {
     try {
       const data = await saveGraph();
-      showMessage(`Saved ${data.nodes.length} nodes`);
+      showMessage(`${data.nodes.length} nodes saved to API`);
     } catch {
       showMessage('Save failed', 'error');
     }
@@ -147,77 +164,156 @@ export default function Header() {
         />
       )}
 
-      <header className="fixed top-0 left-0 right-0 z-50 bg-black/80 backdrop-blur-sm border-b border-gray-800">
-        <div className="flex items-center justify-between px-6 py-3">
-          <div className="flex items-center gap-4">
-            <h1 className="text-xl font-bold bg-gradient-to-r from-blue-400 to-purple-500 bg-clip-text text-transparent">
-              OpenPulse
-            </h1>
-            <span className="text-xs text-gray-500 border border-gray-700 px-2 py-1 rounded">v0.3.0</span>
-            {!checking && (
-              <div className="flex items-center gap-1.5">
-                <div className={`w-2 h-2 rounded-full ${connected ? 'bg-green-500' : 'bg-red-500'}`} />
-                <span className="text-xs text-gray-500">
-                  {connected ? 'API Connected' : 'API Offline'}
+      <header className="fixed top-0 left-0 right-0 z-50 bg-black border-b border-white/10">
+        <div className="absolute inset-0 bg-gradient-to-r from-blue-500/5 via-transparent to-purple-500/5" />
+        <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-blue-500/50 to-transparent" />
+        
+        <div className="relative px-6 py-3">
+          <div className="flex items-center justify-between">
+            {/* Logo Section */}
+            <div className="flex items-center gap-4">
+              <div className="flex items-baseline gap-3">
+                <h1 className="text-2xl font-black tracking-tighter bg-gradient-to-r from-white via-white to-white/70 bg-clip-text text-transparent">
+                  OPENPULSE
+                </h1>
+                <span className="text-[10px] font-mono font-bold tracking-[0.2em] text-white/30 border-l border-white/20 pl-3">
+                  V0.3.0
                 </span>
               </div>
-            )}
-          </div>
-
-          <nav className="flex items-center gap-3">
-            <div className="flex items-center gap-2 border border-gray-700 rounded-lg px-3 py-1.5">
-              <input
-                type="text"
-                value={repoInput}
-                onChange={(e) => setRepoInput(e.target.value)}
-                onKeyDown={(e) => e.key === 'Enter' && handleAnalyzeRepo()}
-                placeholder="owner/repo or GitHub URL"
-                className="bg-transparent text-sm text-gray-300 outline-none w-64"
-                disabled={analyzing || !connected}
-              />
-              <button
-                onClick={handleAnalyzeRepo}
-                disabled={analyzing || !connected || !repoInput.trim()}
-                className="text-sm bg-blue-600 hover:bg-blue-700 px-3 py-1 rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                {analyzing ? 'Analyzing…' : 'Analyze'}
-              </button>
+              
+              {!checking && (
+                <div className="flex items-center gap-2 pl-3 border-l border-white/20">
+                  <span className="relative flex h-2 w-2">
+                    <span className={`absolute inline-flex h-full w-full rounded-full ${
+                      connected ? 'bg-emerald-500' : 'bg-red-500'
+                    } ${connected ? 'animate-ping opacity-75' : ''}`} />
+                    <span className={`relative inline-flex h-2 w-2 rounded-full ${
+                      connected ? 'bg-emerald-500' : 'bg-red-500'
+                    }`} />
+                  </span>
+                  <span className="text-[10px] font-mono font-bold tracking-wider text-white/40">
+                    {connected ? 'API ACTIVE' : 'API OFFLINE'}
+                  </span>
+                </div>
+              )}
             </div>
 
-            <div className="w-px h-6 bg-gray-700" />
+            {/* Navigation Section */}
+            <nav className="flex items-center gap-3">
+              {/* Search/Analyze Input */}
+              <div className="relative group">
+                <div className="absolute -inset-px bg-gradient-to-r from-blue-500/20 to-purple-500/20 rounded-xl blur opacity-0 group-focus-within:opacity-100 transition duration-500" />
+                <div className="relative flex items-center gap-2 bg-white/5 border border-white/20 rounded-lg px-3 py-1.5 group-focus-within:border-blue-500/50 transition-all">
+                  <input
+                    type="text"
+                    value={repoInput}
+                    onChange={(e) => setRepoInput(e.target.value)}
+                    onKeyDown={(e) => e.key === 'Enter' && handleAnalyzeRepo()}
+                    placeholder="owner/repo or GitHub URL"
+                    className="bg-transparent text-sm font-mono text-white placeholder:text-white/30 outline-none w-64"
+                    disabled={analyzing || !connected}
+                  />
+                  <button
+                    onClick={handleAnalyzeRepo}
+                    disabled={analyzing || !connected || !repoInput.trim()}
+                    className="relative overflow-hidden group/btn text-sm bg-white/10 hover:bg-white/20 px-3 py-1 rounded transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    <span className="relative z-10 font-mono text-xs font-bold tracking-wider">
+                      {analyzing ? 'ANALYZING...' : 'ANALYZE'}
+                    </span>
+                    {!analyzing && (
+                      <div className="absolute inset-0 bg-gradient-to-r from-white/0 via-white/10 to-white/0 translate-x-[-100%] group-hover/btn:translate-x-[100%] transition-transform duration-700" />
+                    )}
+                  </button>
+                </div>
+              </div>
 
-            <button onClick={handleLoadFromApi} disabled={loadLoading || !connected}
-              className="text-sm text-gray-400 hover:text-white transition-colors disabled:opacity-50">
-              {loadLoading ? 'Loading…' : 'Load'}
-            </button>
-            <button onClick={handleSaveToApi} disabled={saveLoading || !connected}
-              className="text-sm text-gray-400 hover:text-white transition-colors disabled:opacity-50">
-              {saveLoading ? 'Saving…' : 'Save'}
-            </button>
-            <button onClick={handleLoadDemo}
-              className="text-sm text-gray-400 hover:text-white transition-colors">
-              Demo
-            </button>
+              <div className="w-px h-6 bg-white/20" />
 
-            <div className="w-px h-6 bg-gray-700" />
+              {/* Action Buttons */}
+              <button 
+                onClick={handleLoadFromApi} 
+                disabled={loadLoading || !connected}
+                className="relative overflow-hidden group px-3 py-1.5 text-xs font-mono font-bold tracking-wider text-white/60 hover:text-white transition-colors disabled:opacity-50"
+              >
+                {loadLoading ? 'LOADING...' : 'LOAD'}
+              </button>
+              
+              <button 
+                onClick={handleSaveToApi} 
+                disabled={saveLoading || !connected}
+                className="relative overflow-hidden group px-3 py-1.5 text-xs font-mono font-bold tracking-wider text-white/60 hover:text-white transition-colors disabled:opacity-50"
+              >
+                {saveLoading ? 'SAVING...' : 'SAVE'}
+              </button>
+              
+              <button 
+                onClick={handleLoadDemo}
+                className="relative overflow-hidden group px-3 py-1.5 text-xs font-mono font-bold tracking-wider text-white/60 hover:text-white transition-colors"
+              >
+                DEMO
+              </button>
 
-            <Link href="/docs" target="_blank"
-              className="text-sm text-indigo-400 hover:text-indigo-300 border border-indigo-800 hover:border-indigo-600 px-3 py-1 rounded-lg transition-colors">
-              ? Docs
-            </Link>
-          </nav>
+              <div className="w-px h-6 bg-white/20" />
+
+              {/* Stats Section */}
+              <div className="flex items-center gap-3 text-[10px] font-mono">
+                <div className="flex items-center gap-2">
+                  <span className="text-white/30">NODES</span>
+                  <span className="text-white/80 font-bold tabular-nums">
+                    {nodes.length.toString().padStart(4, '0')}
+                  </span>
+                </div>
+                <div className="text-white/20">|</div>
+                <div className="flex items-center gap-2">
+                  <span className="text-white/30">EDGES</span>
+                  <span className="text-white/80 font-bold tabular-nums">
+                    {edges.length.toString().padStart(4, '0')}
+                  </span>
+                </div>
+              </div>
+
+              <div className="w-px h-6 bg-white/20" />
+
+              {/* Docs Link */}
+              <Link href="/docs" target="_blank"
+                className="relative overflow-hidden group px-4 py-1.5 border border-indigo-500/50 hover:border-indigo-400 rounded-lg transition-all">
+                <span className="relative z-10 text-xs font-mono font-bold tracking-wider text-indigo-400 group-hover:text-indigo-300">
+                  DOCS
+                </span>
+              </Link>
+            </nav>
+          </div>
         </div>
 
+        {/* Message Toast */}
         {message && (
-          <div className="absolute top-full left-1/2 -translate-x-1/2 mt-2 z-50">
-            <div className={`px-4 py-2 rounded-lg shadow-lg text-sm ${
-              messageType === 'success' ? 'bg-green-700 text-white' : 'bg-red-700 text-white'
-            }`}>
-              {message}
+          <div className="absolute top-full left-1/2 -translate-x-1/2 mt-2 z-50 animate-in slide-in-from-top-2 fade-in duration-200">
+            <div className={`relative overflow-hidden rounded-lg shadow-2xl ${
+              messageType === 'success' 
+                ? 'bg-emerald-500/90 border border-emerald-400/50' 
+                : 'bg-red-500/90 border border-red-400/50'
+            } backdrop-blur-sm`}>
+              <div className="px-4 py-2 text-sm font-mono font-bold text-white tracking-wide">
+                {message}
+              </div>
+              <div className={`absolute bottom-0 left-0 h-0.5 ${
+                messageType === 'success' ? 'bg-white' : 'bg-white'
+              } animate-[shrink_4s_linear]`} style={{ width: '100%' }} />
             </div>
           </div>
         )}
       </header>
+
+      <style jsx>{`
+        @keyframes shrink {
+          from { width: 100%; }
+          to { width: 0%; }
+        }
+        .animate-\\[shrink_4s_linear\\] {
+          animation: shrink 4s linear;
+        }
+      `}</style>
     </>
   );
 }
