@@ -1,10 +1,23 @@
 'use client';
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { useGraphStore } from '@/stores/graphStore';
 import { useApiConnection } from '@/hooks/useApiGraph';
 import { ECOSYSTEM_COLORS } from '@/lib/constants';
 import type { GraphData } from '@/types/graph';
+import { 
+  Search, 
+  Zap, 
+  Activity, 
+  Globe, 
+  Package, 
+  GitBranch,
+  Cpu,
+  Sparkles,
+  ChevronRight,
+  Layers
+} from 'lucide-react';
 
 // ── Types ──────────────────────────────────────────────────────────── //
 
@@ -55,58 +68,90 @@ async function callAnalyze(
   return res.json();
 }
 
-// ── Eco badge (Level 1) ────────────────────────────────────────────── //
+// ── Eco badge with glow effect ────────────────────────────────────────────── //
 
 function EcoBadge({
   eco, count, active, onClick,
 }: { eco: string; count: number; active: boolean; onClick: () => void }) {
   const color = ECOSYSTEM_COLORS[eco] ?? '#94a3b8';
   return (
-    <button
+    <motion.button
       type="button"
       onClick={onClick}
-      className="flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-medium transition-all border"
+      whileHover={{ scale: 1.05, y: -1 }}
+      whileTap={{ scale: 0.95 }}
+      animate={active ? { 
+        boxShadow: [`0 0 0px ${color}`, `0 0 12px ${color}`, `0 0 0px ${color}`],
+      } : {}}
+      transition={{ duration: 1.5, repeat: active ? Infinity : 0 }}
+      className="flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-medium transition-all border relative overflow-hidden"
       style={{
-        backgroundColor: active ? color + '22' : 'transparent',
-        borderColor:     active ? color : '#334155',
-        color:           active ? color : '#64748b',
+        backgroundColor: active ? color + '22' : 'rgba(255,255,255,0.03)',
+        borderColor:     active ? color + '80' : 'rgba(255,255,255,0.1)',
+        color:           active ? color : '#94a3b8',
       }}
     >
-      <span className="w-2 h-2 rounded-full" style={{ backgroundColor: active ? color : '#475569' }} />
+      {active && (
+        <motion.div
+          className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent"
+          animate={{ x: ['-100%', '100%'] }}
+          transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
+        />
+      )}
+      <motion.span 
+        className="w-2 h-2 rounded-full"
+        style={{ backgroundColor: active ? color : '#475569' }}
+        animate={active ? { scale: [1, 1.3, 1] } : {}}
+        transition={{ duration: 1, repeat: Infinity }}
+      />
       {eco}
       <span className="opacity-50">{count}</span>
-    </button>
+    </motion.button>
   );
 }
 
-// ── Manifest badge (Level 2) ───────────────────────────────────────── //
+// ── Manifest badge with enhanced styling ───────────────────────────────── //
 
 function ManifestBadge({
   path, active, color, onClick,
 }: { path: string; active: boolean; color: string; onClick: () => void }) {
-  // Show only filename, show dir as muted prefix
   const parts  = path.split('/');
   const file   = parts.pop()!;
   const dir    = parts.length ? parts.join('/') + '/' : '';
 
   return (
-    <button
+    <motion.button
       type="button"
       onClick={onClick}
-      className="flex items-center gap-1 rounded-full px-3 py-1 text-xs font-mono transition-all border"
+      whileHover={{ scale: 1.02, y: -1 }}
+      whileTap={{ scale: 0.98 }}
+      animate={active ? { 
+        borderColor: [color + '80', color, color + '80'],
+        boxShadow: [`0 0 0px ${color}`, `0 0 8px ${color}`, `0 0 0px ${color}`],
+      } : {}}
+      transition={{ duration: 1, repeat: active ? Infinity : 0 }}
+      className="flex items-center gap-1 rounded-full px-3 py-1 text-xs font-mono transition-all border relative"
       style={{
-        backgroundColor: active ? color + '18' : 'transparent',
-        borderColor:     active ? color + '80' : '#1e293b',
-        color:           active ? color : '#475569',
+        backgroundColor: active ? color + '18' : 'rgba(255,255,255,0.02)',
+        borderColor:     active ? color + '80' : 'rgba(255,255,255,0.08)',
+        color:           active ? color : '#64748b',
       }}
     >
       {dir && <span className="opacity-40">{dir}</span>}
       <span>{file}</span>
-    </button>
+      {active && (
+        <motion.div
+          className="absolute bottom-0 left-0 right-0 h-0.5 bg-gradient-to-r from-transparent via-white to-transparent"
+          initial={{ scaleX: 0 }}
+          animate={{ scaleX: 1 }}
+          transition={{ duration: 0.3 }}
+        />
+      )}
+    </motion.button>
   );
 }
 
-// ── Main Header ───────────────────────────────────────────────────── //
+// ── Main Header with animations ───────────────────────────────────── //
 
 export default function Header() {
   const setGraphData  = useGraphStore((s) => s.setGraphData);
@@ -116,20 +161,13 @@ export default function Header() {
   const [loading,     setLoading]     = useState(false);
   const [error,       setError]       = useState<string | null>(null);
   const [successMsg,  setSuccessMsg]  = useState<string | null>(null);
+  const [isFocused,   setIsFocused]   = useState(false);
 
-  // Full result cache (never mutated — always filter from this)
   const [fullResult,  setFullResult]  = useState<AnalyzeResult | null>(null);
-
-  // Level 1 — ecosystem
   const [ecosystems,  setEcosystems]  = useState<EcosystemSummary[]>([]);
   const [activeEco,   setActiveEco]   = useState<string>('all');
-
-  // Level 2 — manifest within ecosystem
-  // { npm: ['frontend/package.json', 'backend/package.json'], python: [...] }
   const [manifestGroups, setManifestGroups] = useState<Record<string, string[]>>({});
   const [activeManifest, setActiveManifest] = useState<string>('all');
-
-  // ── flash helper ──────────────────────────────────────────────── //
 
   const flash = useCallback((msg: string, kind: 'ok' | 'err') => {
     if (kind === 'ok') { setSuccessMsg(msg); setError(null); }
@@ -137,36 +175,23 @@ export default function Header() {
     setTimeout(() => { setSuccessMsg(null); setError(null); }, 4000);
   }, []);
 
-  // ── filter + push to graph store ─────────────────────────────── //
-  //
-  // Logic:
-  //   eco=all,  manifest=all   → show everything
-  //   eco=npm,  manifest=all   → show all npm nodes + edges
-  //   eco=npm,  manifest=X     → show only root node whose manifestPath=X
-  //                              + its direct dep nodes + connecting edges
-
   const applyFilter = useCallback(
     (result: AnalyzeResult, eco: string, manifest: string) => {
       let nodes = result.nodes;
       let edges = result.edges;
 
-      // Level 1 — ecosystem filter
       if (eco !== 'all') {
         nodes = nodes.filter(
           (n) => (n.metadata?.ecosystem === eco) || (n.metadata?.isRoot && n.metadata?.ecosystem === eco),
         );
       }
 
-      // Level 2 — specific manifest filter
       if (manifest !== 'all') {
-        // Keep: the root node whose manifestPath matches, plus all dep nodes
-        // connected to that root via edges
         const rootNode = nodes.find(
           (n) => n.metadata?.isRoot && n.metadata?.manifestPath === manifest,
         );
 
         if (rootNode) {
-          // Get all dep IDs connected FROM this root
           const connectedDepIds = new Set(
             edges
               .filter((e) => e.source === rootNode.id)
@@ -176,7 +201,6 @@ export default function Header() {
             (n) => n.id === rootNode.id || connectedDepIds.has(n.id),
           );
         } else {
-          // Fallback: filter by manifestPath or manifestPaths array
           nodes = nodes.filter((n) => {
             if (n.metadata?.manifestPath === manifest) return true;
             const mp = n.metadata?.manifestPaths as string[] | undefined;
@@ -186,7 +210,6 @@ export default function Header() {
         }
       }
 
-      // Always trim edges to only what visible nodes allow
       const nodeIds = new Set(nodes.map((n) => n.id));
       edges = edges.filter(
         (e) => nodeIds.has(e.source as string) && nodeIds.has(e.target as string),
@@ -196,8 +219,6 @@ export default function Header() {
     },
     [setGraphData],
   );
-
-  // ── scan ──────────────────────────────────────────────────────── //
 
   const handleAnalyze = useCallback(async () => {
     const parsed = parseRepoInput(input);
@@ -218,18 +239,12 @@ export default function Header() {
       const result = await callAnalyze(parsed.owner, parsed.repo, null);
       setFullResult(result);
       setEcosystems(result.ecosystems ?? []);
-
-      // manifestGroups comes from backend metadata
       const mg = (result.metadata.manifestGroups ?? {}) as Record<string, string[]>;
       setManifestGroups(mg);
-
       applyFilter(result, 'all', 'all');
 
       const ecoNames = [...new Set(result.ecosystems.map((e) => e.ecosystem))].join(', ');
-      flash(
-        `✓ ${result.metadata.totalNodes} packages · ${ecoNames} · ${result.metadata.totalEdges} deps`,
-        'ok',
-      );
+      flash(`✓ ${result.metadata.totalNodes} packages · ${ecoNames} · ${result.metadata.totalEdges} deps`, 'ok');
     } catch (err) {
       flash(err instanceof Error ? err.message : 'Analysis failed', 'err');
     } finally {
@@ -237,116 +252,192 @@ export default function Header() {
     }
   }, [input, flash, applyFilter]);
 
-  // ── level 1 change ────────────────────────────────────────────── //
+  const handleEcoChange = useCallback((eco: string) => {
+    setActiveEco(eco);
+    setActiveManifest('all');
+    if (fullResult) applyFilter(fullResult, eco, 'all');
+  }, [fullResult, applyFilter]);
 
-  const handleEcoChange = useCallback(
-    (eco: string) => {
-      setActiveEco(eco);
-      setActiveManifest('all');   // reset level 2 whenever eco changes
-      if (fullResult) applyFilter(fullResult, eco, 'all');
-    },
-    [fullResult, applyFilter],
-  );
-
-  // ── level 2 change ────────────────────────────────────────────── //
-
-  const handleManifestChange = useCallback(
-    (manifest: string) => {
-      setActiveManifest(manifest);
-      if (fullResult) applyFilter(fullResult, activeEco, manifest);
-    },
-    [fullResult, activeEco, applyFilter],
-  );
-
-  // ── derived ───────────────────────────────────────────────────── //
+  const handleManifestChange = useCallback((manifest: string) => {
+    setActiveManifest(manifest);
+    if (fullResult) applyFilter(fullResult, activeEco, manifest);
+  }, [fullResult, activeEco, applyFilter]);
 
   const uniqueEcos = [...new Set(ecosystems.map((e) => e.ecosystem))];
-
-  // manifests for the currently selected ecosystem (level 2 row)
-  const currentManifests: string[] =
-    activeEco !== 'all' && manifestGroups[activeEco]?.length > 1
-      ? manifestGroups[activeEco]
-      : [];
+  const currentManifests = activeEco !== 'all' && manifestGroups[activeEco]?.length > 1
+    ? manifestGroups[activeEco]
+    : [];
 
   const ecoColor = ECOSYSTEM_COLORS[activeEco] ?? '#94a3b8';
 
   return (
-    <header className="shrink-0 border-b border-slate-800 bg-slate-950/90 backdrop-blur-xl">
+    <motion.header 
+      initial={{ y: -100 }}
+      animate={{ y: 0 }}
+      transition={{ type: "spring", stiffness: 300, damping: 30 }}
+      className="shrink-0 border-b border-white/10 bg-black/80 backdrop-blur-2xl relative overflow-hidden"
+    >
+      {/* Animated gradient background */}
+      <motion.div
+        className="absolute inset-0 bg-gradient-to-r from-transparent via-white/5 to-transparent"
+        animate={{ x: ['-100%', '100%'] }}
+        transition={{ duration: 8, repeat: Infinity, ease: "linear" }}
+      />
+      
+      {/* Glowing top border */}
+      <motion.div
+        className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-white/50 to-transparent"
+        animate={{ opacity: [0.3, 1, 0.3] }}
+        transition={{ duration: 2, repeat: Infinity }}
+      />
 
       {/* ── Row 1: logo + input + button + status ─────────────────── */}
-      <div className="flex items-center gap-3 px-4 py-3">
+      <div className="flex items-center gap-3 px-6 py-4 relative z-10">
+        {/* Logo with enhanced animation */}
+        <motion.div 
+          className="flex items-center gap-2 shrink-0 cursor-pointer"
+          whileHover={{ scale: 1.05 }}
+          whileTap={{ scale: 0.95 }}
+        >
+          <motion.div
+            animate={{ 
+              rotate: [0, 360],
+              scale: [1, 1.1, 1],
+            }}
+            transition={{ duration: 3, repeat: Infinity, ease: "linear", repeatDelay: 2 }}
+            className="relative"
+          >
+            <div className="absolute inset-0 rounded-lg bg-white/20 blur-md animate-pulse" />
+            <div className="relative w-8 h-8 rounded-lg bg-gradient-to-br from-white to-zinc-400 flex items-center justify-center">
+              <Zap className="w-4 h-4 text-black" />
+            </div>
+          </motion.div>
+          
+          <motion.span 
+            className="text-base font-bold bg-gradient-to-r from-white to-zinc-400 bg-clip-text text-transparent hidden sm:block"
+            animate={{ backgroundPosition: ['0%', '100%'] }}
+            transition={{ duration: 3, repeat: Infinity }}
+            style={{ backgroundSize: '200% auto' }}
+          >
+            OpenPulse
+          </motion.span>
+          
+          <motion.div
+            animate={{ rotate: 360 }}
+            transition={{ duration: 8, repeat: Infinity, ease: "linear" }}
+          >
+            <Sparkles className="w-3 h-3 text-white/40" />
+          </motion.div>
+        </motion.div>
 
-        {/* Logo */}
-        <div className="flex items-center gap-2 shrink-0">
-          <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-violet-500 to-indigo-600 flex items-center justify-center text-white text-xs font-bold">
-            OP
-          </div>
-          <span className="text-sm font-semibold text-white hidden sm:block">OpenPulse</span>
-        </div>
-
-        {/* Input */}
+        {/* Input with glow effect */}
         <div className="flex-1 flex items-center gap-2">
-          <div className="flex-1 relative">
+          <motion.div 
+            className="flex-1 relative"
+            animate={isFocused ? { scale: 1.01 } : { scale: 1 }}
+          >
+            <motion.div
+              className="absolute inset-0 rounded-xl bg-gradient-to-r from-white/20 to-white/5 blur-md"
+              animate={{ opacity: isFocused ? 1 : 0 }}
+              transition={{ duration: 0.2 }}
+            />
             <input
               type="text"
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && handleAnalyze()}
+              onFocus={() => setIsFocused(true)}
+              onBlur={() => setIsFocused(false)}
               placeholder="owner/repo  or  https://github.com/owner/repo"
-              className="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-2 text-sm text-slate-200 placeholder-slate-600 focus:outline-none focus:border-indigo-500 transition-colors"
+              className="w-full bg-black/60 border border-white/20 rounded-xl px-4 py-2.5 text-sm text-white placeholder-zinc-500 focus:outline-none focus:border-white/40 transition-all relative z-10"
             />
-          </div>
+            <Search className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500 z-10" />
+          </motion.div>
 
-          <button
+          <motion.button
             type="button"
             onClick={handleAnalyze}
             disabled={loading || !connected}
-            className="shrink-0 flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-medium transition-all
-              bg-indigo-600 hover:bg-indigo-500 text-white
-              disabled:opacity-40 disabled:cursor-not-allowed"
+            whileHover={{ scale: 1.02 }}
+            whileTap={{ scale: 0.98 }}
+            animate={!loading && connected ? { 
+              boxShadow: ['0 0 0px rgba(255,255,255,0)', '0 0 12px rgba(255,255,255,0.3)', '0 0 0px rgba(255,255,255,0)']
+            } : {}}
+            transition={{ duration: 1.5, repeat: Infinity }}
+            className="shrink-0 flex items-center gap-2 rounded-xl px-5 py-2.5 text-sm font-medium transition-all relative overflow-hidden bg-white/10 hover:bg-white/20 text-white border border-white/20 disabled:opacity-40 disabled:cursor-not-allowed"
           >
             {loading ? (
               <>
-                <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+                <motion.svg 
+                  className="w-4 h-4 animate-spin" 
+                  fill="none" 
+                  viewBox="0 0 24 24"
+                  animate={{ rotate: 360 }}
+                  transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+                >
                   <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
                   <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4l3-3-3-3v4A8 8 0 004 12z"/>
-                </svg>
+                </motion.svg>
                 Scanning…
               </>
             ) : (
               <>
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-                    d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
-                </svg>
+                <Activity className="w-4 h-4" />
                 Analyze
               </>
             )}
-          </button>
+          </motion.button>
         </div>
 
-        {/* API dot */}
-        <div className="shrink-0 flex items-center gap-1.5 text-xs">
-          <span className={`w-2 h-2 rounded-full ${connected ? 'bg-emerald-400' : 'bg-rose-500'}`} />
+        {/* API status with enhanced indicator */}
+        <motion.div 
+          className="shrink-0 flex items-center gap-1.5 text-xs"
+          animate={connected ? { 
+            boxShadow: ['0 0 0px rgba(34,197,94,0)', '0 0 8px rgba(34,197,94,0.5)', '0 0 0px rgba(34,197,94,0)']
+          } : {}}
+          transition={{ duration: 1.5, repeat: Infinity }}
+        >
+          <motion.span 
+            className={`w-2 h-2 rounded-full ${connected ? 'bg-emerald-400' : 'bg-rose-500'}`}
+            animate={connected ? { scale: [1, 1.3, 1] } : {}}
+            transition={{ duration: 1, repeat: Infinity }}
+          />
           <span className={connected ? 'text-emerald-400' : 'text-rose-400'}>
-            {connected ? 'API' : 'Offline'}
+            {connected ? 'API Live' : 'Offline'}
           </span>
-        </div>
+        </motion.div>
       </div>
 
-      {/* ── Feedback ──────────────────────────────────────────────── */}
-      {(error || successMsg) && (
-        <div className={`px-4 pb-2 text-xs font-mono ${error ? 'text-rose-400' : 'text-emerald-400'}`}>
-          {error ?? successMsg}
-        </div>
-      )}
+      {/* ── Feedback with animation ───────────────────────────────── */}
+      <AnimatePresence>
+        {(error || successMsg) && (
+          <motion.div
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+            className={`px-6 pb-2 text-xs font-mono ${error ? 'text-rose-400' : 'text-emerald-400'}`}
+          >
+            {error ?? successMsg}
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* ── Row 2: Level 1 — ecosystem selector ──────────────────── */}
       {uniqueEcos.length > 0 && (
-        <div className="flex items-center gap-2 px-4 pb-2 flex-wrap">
-          <span className="text-[10px] uppercase tracking-widest text-slate-500 shrink-0">Ecosystem:</span>
+        <motion.div 
+          initial={{ opacity: 0, y: -20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.2 }}
+          className="flex items-center gap-2 px-6 pb-2 flex-wrap"
+        >
+          <motion.span 
+            className="text-[10px] uppercase tracking-widest text-zinc-500 shrink-0 flex items-center gap-1"
+            whileHover={{ letterSpacing: '0.2em' }}
+          >
+            <GitBranch className="w-3 h-3" />
+            Ecosystem:
+          </motion.span>
 
-          {/* All badge */}
           <EcoBadge
             eco="all"
             count={ecosystems.length}
@@ -368,31 +459,52 @@ export default function Header() {
           })}
 
           {/* dep counts on the right */}
-          <div className="ml-auto flex items-center gap-3">
+          <motion.div 
+            className="ml-auto flex items-center gap-3"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 0.3 }}
+          >
             {[...new Set(ecosystems.map((e) => e.ecosystem))].map((eco) => {
               const total = ecosystems
                 .filter((e) => e.ecosystem === eco)
                 .reduce((s, e) => s + e.totalDeps, 0);
               return (
-                <span key={eco} className="text-[10px] text-slate-500 font-mono">
+                <motion.span 
+                  key={eco} 
+                  className="text-[10px] text-zinc-600 font-mono flex items-center gap-1"
+                  whileHover={{ scale: 1.05 }}
+                >
+                  <Package className="w-3 h-3" style={{ color: ECOSYSTEM_COLORS[eco] }} />
                   <span style={{ color: ECOSYSTEM_COLORS[eco] }}>{eco}</span>
                   {' '}{total} deps
-                </span>
+                </motion.span>
               );
             })}
-          </div>
-        </div>
+          </motion.div>
+        </motion.div>
       )}
 
-      {/* ── Row 3: Level 2 — manifest selector (only when eco has 2+) */}
+      {/* ── Row 3: Level 2 — manifest selector ───────────────────── */}
       {currentManifests.length > 0 && (
-        <div className="flex items-center gap-2 px-4 pb-3 flex-wrap">
+        <motion.div 
+          initial={{ opacity: 0, y: -20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.3 }}
+          className="flex items-center gap-2 px-6 pb-3 flex-wrap"
+        >
+          <motion.span 
+            className="text-zinc-600 text-xs shrink-0 pl-2"
+            animate={{ x: [0, 3, 0] }}
+            transition={{ duration: 1, repeat: Infinity }}
+          >
+            <ChevronRight className="w-3 h-3" />
+          </motion.span>
+          <span className="text-[10px] uppercase tracking-widest text-zinc-600 shrink-0 flex items-center gap-1">
+            <Layers className="w-3 h-3" />
+            Manifest:
+          </span>
 
-          {/* Indent arrow */}
-          <span className="text-slate-700 text-xs shrink-0 pl-2">↳</span>
-          <span className="text-[10px] uppercase tracking-widest text-slate-600 shrink-0">Manifest:</span>
-
-          {/* All-in-ecosystem badge */}
           <ManifestBadge
             path={`all ${activeEco}`}
             active={activeManifest === 'all'}
@@ -409,9 +521,8 @@ export default function Header() {
               onClick={() => handleManifestChange(mf)}
             />
           ))}
-        </div>
+        </motion.div>
       )}
-
-    </header>
+    </motion.header>
   );
 }
