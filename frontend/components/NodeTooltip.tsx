@@ -28,7 +28,7 @@ export default function NodeTooltip() {
 
   return (
     <div
-      className="pointer-events-none fixed z-50 rounded-lg border border-slate-700 bg-slate-900/95 px-3 py-2 text-sm shadow-xl backdrop-blur-sm"
+      className="pointer-events-none fixed z-50 rounded-lg border border-slate-700 bg-black px-3 py-2 text-sm shadow-xl backdrop-blur-sm"
       style={{
         left: `${position.x + 15}px`,
         top: `${position.y + 15}px`,

@@ -7,7 +7,7 @@ import Scene from './Scene';
 
 function LoadingFallback() {
   return (
-    <div className="flex h-full w-full items-center justify-center bg-slate-950 text-sm text-slate-500">
+    <div className="flex h-full w-full items-center justify-center bg-black text-sm text-slate-500">
       Preparing 3D scene...
     </div>
   );
@@ -15,7 +15,7 @@ function LoadingFallback() {
 
 export default function Canvas3D() {
   return (
-    <div className="h-full w-full bg-slate-950">
+    <div className="h-full w-full bg-black">
       <Suspense fallback={<LoadingFallback />}>
         <Canvas
           camera={{

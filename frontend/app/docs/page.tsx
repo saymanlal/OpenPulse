@@ -17,7 +17,7 @@ function Table({ rows, heads }: { heads: string[]; rows: string[][] }) {
     <div className="overflow-x-auto rounded-xl border border-slate-800 mt-3">
       <table className="w-full text-sm">
         <thead>
-          <tr className="border-b border-slate-800 bg-slate-900/80">
+          <tr className="border-b border-slate-800 bg-black">
             {heads.map((h) => (
               <th key={h} className="text-left px-4 py-2.5 text-slate-400 font-medium">{h}</th>
             ))}
@@ -25,7 +25,7 @@ function Table({ rows, heads }: { heads: string[]; rows: string[][] }) {
         </thead>
         <tbody>
           {rows.map((row, i) => (
-            <tr key={i} className="border-b border-slate-900 hover:bg-slate-900/40 transition-colors">
+            <tr key={i} className="border-b border-slate-900 hover:bg-black transition-colors">
               {row.map((cell, j) => (
                 <td key={j} className="px-4 py-2.5 text-slate-300 font-mono text-xs">{cell}</td>
               ))}
@@ -71,9 +71,9 @@ export default function DocsPage() {
   ];
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100">
+    <div className="min-h-screen bg-black text-slate-100">
       {/* top bar */}
-      <header className="sticky top-0 z-50 bg-slate-950/90 backdrop-blur border-b border-slate-800 px-6 py-3 flex items-center justify-between">
+      <header className="sticky top-0 z-50 bg-black backdrop-blur border-b border-slate-800 px-6 py-3 flex items-center justify-between">
         <div className="flex items-center gap-3">
           <Link href="/" className="text-slate-400 hover:text-white text-sm transition-colors">← Back to app</Link>
           <span className="text-slate-700">|</span>
@@ -334,7 +334,7 @@ export default function DocsPage() {
                 a: 'No, this is intentional. With 100+ nodes showing all edges at once creates an unreadable mess. Click any node to reveal its edges in green (depends on) and orange (used by).',
               },
             ].map(({ q, a }) => (
-              <div key={q} className="rounded-xl border border-slate-800 bg-slate-900/40 p-4">
+              <div key={q} className="rounded-xl border border-slate-800 bg-black p-4">
                 <p className="font-medium text-slate-200 mb-1.5">{q}</p>
                 <p className="text-sm text-slate-400">{a}</p>
               </div>

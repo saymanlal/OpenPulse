@@ -27,7 +27,7 @@ export default function Layout() {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ duration: 0.6, ease: "easeOut" }}
-            className="flex min-h-screen flex-col bg-slate-950 text-slate-100"
+            className="flex min-h-screen flex-col bg-black text-slate-100"
           >
             <Header />
 

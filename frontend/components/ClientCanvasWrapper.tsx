@@ -6,7 +6,7 @@ import dynamic from 'next/dynamic';
 const Canvas3D = dynamic(() => import('./Canvas3D'), {
   ssr: false,
   loading: () => (
-    <div className="flex h-full w-full items-center justify-center bg-slate-950 text-sm text-slate-500">
+    <div className="flex h-full w-full items-center justify-center bg-black text-sm text-slate-500">
       Loading 3D Engine...
     </div>
   ),
