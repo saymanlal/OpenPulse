@@ -1,18 +1,11 @@
 'use client';
 
-import { useEffect, useMemo, useRef } from 'react';
+import { useMemo, useRef } from 'react';
 import { ThreeEvent, useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 
 import { NODE_CONFIG } from '@/lib/constants';
 import { useGraphStore } from '@/stores/graphStore';
-
-const tempObject = new THREE.Object3D();
-const tempColor = new THREE.Color();
-
-const WHITE = '#ffffff';
-const HOVER = '#f0f9ff';
-const GOLD = '#fbbf24';
 
 export default function GraphNodes() {
   const nodes = useGraphStore((s) => s.nodes);
@@ -21,121 +14,66 @@ export default function GraphNodes() {
   const setSelectedNode = useGraphStore((s) => s.setSelectedNode);
   const setHoveredNode = useGraphStore((s) => s.setHoveredNode);
 
-  const meshRef = useRef<THREE.InstancedMesh>(null);
-  const nodeLookupRef = useRef(nodes);
-  const activeStateRef = useRef({ selectedNodeId, hoveredNodeId });
+  const groupRef = useRef<THREE.Group>(null);
 
-  useEffect(() => {
-    nodeLookupRef.current = nodes;
-  }, [nodes]);
+  // Create materials for different states
+  const silverMaterial = useMemo(() => new THREE.MeshStandardMaterial({
+    color: '#c0c0c0',
+    metalness: 0.85,
+    roughness: 0.25,
+    emissive: '#111111',
+    emissiveIntensity: 0.05
+  }), []);
 
-  useEffect(() => {
-    activeStateRef.current = { selectedNodeId, hoveredNodeId };
-  }, [selectedNodeId, hoveredNodeId]);
+  const silverHoverMaterial = useMemo(() => new THREE.MeshStandardMaterial({
+    color: '#e0e0e0',
+    metalness: 0.9,
+    roughness: 0.2,
+    emissive: '#222222',
+    emissiveIntensity: 0.1
+  }), []);
 
-  const baseScales = useMemo(
-    () => nodes.map((n) => NODE_CONFIG.baseSize * (n.size ?? 1)),
-    [nodes],
-  );
+  const silverSelectedMaterial = useMemo(() => new THREE.MeshStandardMaterial({
+    color: '#f5f5f5',
+    metalness: 0.95,
+    roughness: 0.15,
+    emissive: '#ffd700',
+    emissiveIntensity: 0.2
+  }), []);
 
-  // Initialize nodes
-  useEffect(() => {
-    const mesh = meshRef.current;
-    if (!mesh) return;
-
-    nodes.forEach((node, i) => {
-      tempObject.position.set(...node.position);
-      tempObject.scale.setScalar(baseScales[i]);
-      tempObject.updateMatrix();
-
-      mesh.setMatrixAt(i, tempObject.matrix);
-      mesh.setColorAt(i, tempColor.set(WHITE));
-    });
-
-    mesh.instanceMatrix.needsUpdate = true;
-    if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
-  }, [nodes, baseScales]);
-
-  // Animation loop
-  useFrame((state) => {
-    const mesh = meshRef.current;
-    if (!mesh) return;
-
-    const elapsed = state.clock.getElapsedTime();
-    const { selectedNodeId: selId, hoveredNodeId: hovId } =
-      activeStateRef.current;
-
-    nodeLookupRef.current.forEach((node, i) => {
-      const selected = node.id === selId;
-      const hovered = !selected && node.id === hovId;
-
-      const pulse = selected
-        ? 1 + Math.sin(elapsed * 3.5) * 0.15
-        : 1;
-
-      const scale =
-        baseScales[i] *
-        (selected
-          ? NODE_CONFIG.selectedScale
-          : hovered
-          ? NODE_CONFIG.hoverScale
-          : 1) *
-        pulse;
-
-      tempObject.position.set(...node.position);
-      tempObject.scale.setScalar(scale);
-      tempObject.updateMatrix();
-
-      mesh.setMatrixAt(i, tempObject.matrix);
-
-      const color = selected ? GOLD : hovered ? HOVER : WHITE;
-      mesh.setColorAt(i, tempColor.set(color));
-    });
-
-    mesh.instanceMatrix.needsUpdate = true;
-    if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
-  });
-
-  const getNode = (e: ThreeEvent<MouseEvent | PointerEvent>) => {
-    const id = e.instanceId;
-    return id !== undefined ? nodeLookupRef.current[id] ?? null : null;
+  const getMaterialForNode = (nodeId: string, isHovered: boolean, isSelected: boolean) => {
+    if (isSelected) return silverSelectedMaterial;
+    if (isHovered) return silverHoverMaterial;
+    return silverMaterial;
   };
 
   if (nodes.length === 0) return null;
 
   return (
-    <instancedMesh
-      ref={meshRef}
-      args={[undefined, undefined, nodes.length]}
-      frustumCulled={false}
-      onClick={(e) => {
-        e.stopPropagation();
-        const node = getNode(e);
-        if (!node) return;
-        setSelectedNode(node.id === selectedNodeId ? null : node.id);
-      }}
-      onPointerMove={(e) => {
-        e.stopPropagation();
-        const node = getNode(e);
-        if (!node) return;
-
-        setHoveredNode(node.id);
-        document.body.style.cursor = 'pointer';
-      }}
-      onPointerOut={() => {
-        setHoveredNode(null);
-        document.body.style.cursor = 'default';
-      }}
-    >
-      <sphereGeometry
-        args={[1, NODE_CONFIG.segments, NODE_CONFIG.segments]}
-      />
-
-      {/* PERFECT MATERIAL FOR GRAPH VISUALIZATION */}
-      <meshPhongMaterial
-        vertexColors
-        shininess={80}
-      />
-    </instancedMesh>
+    <group ref={groupRef}>
+      {nodes.map((node, index) => {
+        const isSelected = node.id === selectedNodeId;
+        const isHovered = node.id === hoveredNodeId;
+        const material = getMaterialForNode(node.id, isHovered, isSelected);
+        const baseScale = NODE_CONFIG.baseSize * (node.size ?? 1);
+        const scale = baseScale * (isSelected ? 1.2 : isHovered ? 1.1 : 1);
+        
+        return (
+          <mesh
+            key={node.id}
+            position={[node.position[0], node.position[1], node.position[2]]}
+            onClick={(e) => {
+              e.stopPropagation();
+              setSelectedNode(node.id === selectedNodeId ? null : node.id);
+            }}
+            onPointerOver={() => setHoveredNode(node.id)}
+            onPointerOut={() => setHoveredNode(null)}
+          >
+            <sphereGeometry args={[scale, NODE_CONFIG.segments, NODE_CONFIG.segments]} />
+            <primitive object={material} attach="material" />
+          </mesh>
+        );
+      })}
+    </group>
   );
 }
