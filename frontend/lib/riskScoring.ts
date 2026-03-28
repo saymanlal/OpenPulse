@@ -108,18 +108,24 @@ export class RiskScoringEngine {
     let factorsConsidered = 0;
 
     if (metadata.createdAt) {
-      const age = Date.now() - new Date(metadata.createdAt).getTime();
-      const ageInYears = age / (1000 * 60 * 60 * 24 * 365);
-      if (ageInYears > 5) risk += 0.3;
-      else if (ageInYears > 2) risk += 0.15;
-      factorsConsidered++;
+      const createdAt = this.safeDate(metadata.createdAt);
+      if (createdAt) {
+        const age = Date.now() - createdAt.getTime();
+        const ageInYears = age / (1000 * 60 * 60 * 24 * 365);
+        if (ageInYears > 5) risk += 0.3;
+        else if (ageInYears > 2) risk += 0.15;
+        factorsConsidered++;
+      }
     }
 
     if (metadata.lastUpdated) {
-      const daysSinceUpdate = (Date.now() - new Date(metadata.lastUpdated).getTime()) / (1000 * 60 * 60 * 24);
-      if (daysSinceUpdate > 365) risk += 0.4;
-      else if (daysSinceUpdate > 180) risk += 0.2;
-      factorsConsidered++;
+      const lastUpdated = this.safeDate(metadata.lastUpdated);
+      if (lastUpdated) {
+        const daysSinceUpdate = (Date.now() - lastUpdated.getTime()) / (1000 * 60 * 60 * 24);
+        if (daysSinceUpdate > 365) risk += 0.4;
+        else if (daysSinceUpdate > 180) risk += 0.2;
+        factorsConsidered++;
+      }
     }
 
     if (metadata.maintainerCount !== undefined) {
@@ -181,9 +187,12 @@ export class RiskScoringEngine {
     confidence += Math.min(metadataFields / 10, 0.3);
 
     if (metadata.lastUpdated) {
-      const daysSinceUpdate = (Date.now() - new Date(metadata.lastUpdated).getTime()) / (1000 * 60 * 60 * 24);
-      if (daysSinceUpdate < 30) confidence += 0.2;
-      else if (daysSinceUpdate < 90) confidence += 0.1;
+      const lastUpdated = this.safeDate(metadata.lastUpdated);
+      if (lastUpdated) {
+        const daysSinceUpdate = (Date.now() - lastUpdated.getTime()) / (1000 * 60 * 60 * 24);
+        if (daysSinceUpdate < 30) confidence += 0.2;
+        else if (daysSinceUpdate < 90) confidence += 0.1;
+      }
     }
 
     return Math.min(confidence, 1);
@@ -247,5 +256,16 @@ export class RiskScoringEngine {
     return results
       .sort((a, b) => b.riskScore.overall - a.riskScore.overall)
       .slice(0, limit);
+  }
+
+  /** Safely converts a value to a Date if possible */
+  private safeDate(value: any): Date | undefined {
+    if (!value) return undefined;
+    if (value instanceof Date) return value;
+    if (typeof value === 'string' || typeof value === 'number') {
+      const d = new Date(value);
+      if (!isNaN(d.getTime())) return d;
+    }
+    return undefined;
   }
 }
