@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useGraphStore } from '@/stores/graphStore';
 import { useApiConnection } from '@/hooks/useApiGraph';
@@ -10,10 +10,8 @@ import {
   Search, 
   Zap, 
   Activity, 
-  Globe, 
   Package, 
   GitBranch,
-  Cpu,
   Sparkles,
   ChevronRight,
   Layers,
@@ -89,19 +87,19 @@ const DEMO_DATA: AnalyzeResult = {
     { id: 'pytest', label: 'pytest', type: 'library', riskScore: 0.22, metadata: { ecosystem: 'pip', version: '7.4.0', manifestPath: 'requirements.txt', isDev: true } },
   ],
   edges: [
-    { id: 'e1', source: 'root-1', target: 'react' },
-    { id: 'e2', source: 'root-1', target: 'lodash' },
-    { id: 'e3', source: 'root-1', target: 'axios' },
-    { id: 'e4', source: 'root-1', target: 'express' },
-    { id: 'e5', source: 'root-1', target: 'webpack' },
-    { id: 'e6', source: 'react', target: 'lodash' },
-    { id: 'e7', source: 'express', target: 'lodash' },
-    { id: 'e8', source: 'root-2', target: 'django' },
-    { id: 'e9', source: 'root-2', target: 'requests' },
-    { id: 'e10', source: 'root-2', target: 'pillow' },
-    { id: 'e11', source: 'root-2', target: 'numpy' },
-    { id: 'e12', source: 'root-2', target: 'pytest' },
-    { id: 'e13', source: 'django', target: 'pillow' },
+    { id: 'e1', source: 'root-1', target: 'react', metadata: {} },
+    { id: 'e2', source: 'root-1', target: 'lodash', metadata: {} },
+    { id: 'e3', source: 'root-1', target: 'axios', metadata: {} },
+    { id: 'e4', source: 'root-1', target: 'express', metadata: {} },
+    { id: 'e5', source: 'root-1', target: 'webpack', metadata: {} },
+    { id: 'e6', source: 'react', target: 'lodash', metadata: {} },
+    { id: 'e7', source: 'express', target: 'lodash', metadata: {} },
+    { id: 'e8', source: 'root-2', target: 'django', metadata: {} },
+    { id: 'e9', source: 'root-2', target: 'requests', metadata: {} },
+    { id: 'e10', source: 'root-2', target: 'pillow', metadata: {} },
+    { id: 'e11', source: 'root-2', target: 'numpy', metadata: {} },
+    { id: 'e12', source: 'root-2', target: 'pytest', metadata: {} },
+    { id: 'e13', source: 'django', target: 'pillow', metadata: {} },
   ],
   metadata: {
     totalNodes: 12,
@@ -113,7 +111,6 @@ const DEMO_DATA: AnalyzeResult = {
   },
 };
 
-// Vulnerability alerts to show after 6 seconds
 const VULNERABILITY_ALERTS: VulnerabilityAlert[] = [
   {
     id: 'vuln-1',
@@ -174,7 +171,7 @@ async function callAnalyze(
   return res.json();
 }
 
-// ── Eco badge with glow effect ────────────────────────────────────────────── //
+// ── Components ─────────────────────────────────────────────────────── //
 
 function EcoBadge({
   eco, count, active, onClick,
@@ -216,8 +213,6 @@ function EcoBadge({
   );
 }
 
-// ── Manifest badge with enhanced styling ───────────────────────────────── //
-
 function ManifestBadge({
   path, active, color, onClick,
 }: { path: string; active: boolean; color: string; onClick: () => void }) {
@@ -256,8 +251,6 @@ function ManifestBadge({
     </motion.button>
   );
 }
-
-// ── Vulnerability Alert Component ──────────────────────────────────── //
 
 function VulnerabilityAlertBanner({ 
   alert, 
@@ -355,10 +348,11 @@ function VulnerabilityAlertBanner({
   );
 }
 
-// ── Main Header with animations ───────────────────────────────────── //
+// ── Main Header ────────────────────────────────────────────────────── //
 
 export default function Header() {
-  const setGraphData  = useGraphStore((s) => s.setGraphData);
+  const setNodes = useGraphStore((s) => s.setNodes);
+  const setEdges = useGraphStore((s) => s.setEdges);
   const setSelectedNode = useGraphStore((s) => s.setSelectedNode);
   const { connected, setForceDisconnect } = useApiConnection();
 
@@ -375,7 +369,6 @@ export default function Header() {
   const [manifestGroups, setManifestGroups] = useState<Record<string, string[]>>({});
   const [activeManifest, setActiveManifest] = useState<string>('all');
 
-  // Vulnerability alerts state
   const [vulnerabilityAlerts, setVulnerabilityAlerts] = useState<VulnerabilityAlert[]>([]);
   const [showVulnAlerts, setShowVulnAlerts] = useState(false);
 
@@ -425,12 +418,12 @@ export default function Header() {
         (e) => nodeIds.has(e.source as string) && nodeIds.has(e.target as string),
       );
 
-      setGraphData({ nodes, edges });
+      setNodes(nodes);
+      setEdges(edges);
     },
-    [setGraphData],
+    [setNodes, setEdges],
   );
 
-  // Load demo data when in demo mode
   const loadDemoData = useCallback(() => {
     setLoading(true);
     setError(null);
@@ -438,7 +431,6 @@ export default function Header() {
     setVulnerabilityAlerts([]);
     setShowVulnAlerts(false);
 
-    // Simulate loading delay
     setTimeout(() => {
       setFullResult(DEMO_DATA);
       setEcosystems(DEMO_DATA.ecosystems ?? []);
@@ -450,7 +442,6 @@ export default function Header() {
       const ecoNames = [...new Set(DEMO_DATA.ecosystems.map((e) => e.ecosystem))].join(', ');
       flash(`🎮 Demo: ${DEMO_DATA.metadata.totalNodes} packages · ${ecoNames} · ${DEMO_DATA.metadata.totalEdges} deps`, 'ok');
 
-      // Schedule vulnerability alerts after 6 seconds
       setTimeout(() => {
         setVulnerabilityAlerts(VULNERABILITY_ALERTS);
         setShowVulnAlerts(true);
@@ -459,7 +450,6 @@ export default function Header() {
   }, [flash, applyFilter]);
 
   const handleAnalyze = useCallback(async () => {
-    // If in demo mode, load demo data instead
     if (demoMode) {
       loadDemoData();
       return;
@@ -516,7 +506,6 @@ export default function Header() {
       setForceDisconnect(newDemoMode);
     }
     
-    // Clear existing data when toggling
     setVulnerabilityAlerts([]);
     setShowVulnAlerts(false);
     setFullResult(null);
@@ -539,7 +528,6 @@ export default function Header() {
 
   const handleInspectVulnerability = useCallback((nodeId: string) => {
     setSelectedNode(nodeId);
-    // You might want to also switch to the node tab in Inspector here
   }, [setSelectedNode]);
 
   const uniqueEcos = [...new Set(ecosystems.map((e) => e.ecosystem))];
@@ -556,23 +544,19 @@ export default function Header() {
       transition={{ type: "spring", stiffness: 300, damping: 30 }}
       className="shrink-0 border-b border-white/10 bg-black/80 backdrop-blur-2xl relative overflow-hidden"
     >
-      {/* Animated gradient background */}
       <motion.div
         className="absolute inset-0 bg-gradient-to-r from-transparent via-white/5 to-transparent"
         animate={{ x: ['-100%', '100%'] }}
         transition={{ duration: 8, repeat: Infinity, ease: "linear" }}
       />
       
-      {/* Glowing top border */}
       <motion.div
         className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-white/50 to-transparent"
         animate={{ opacity: [0.3, 1, 0.3] }}
         transition={{ duration: 2, repeat: Infinity }}
       />
 
-      {/* ── Row 1: logo + input + button + docs + demo + status ─────────────────── */}
       <div className="flex items-center gap-3 px-6 py-4 relative z-10">
-        {/* Logo with enhanced animation */}
         <motion.div 
           className="flex items-center gap-2 shrink-0 cursor-pointer"
           whileHover={{ scale: 1.05 }}
@@ -609,7 +593,6 @@ export default function Header() {
           </motion.div>
         </motion.div>
 
-        {/* Input with glow effect */}
         <div className="flex-1 flex items-center gap-2">
           <motion.div 
             className="flex-1 relative"
@@ -669,7 +652,6 @@ export default function Header() {
           </motion.button>
         </div>
 
-        {/* Docs Button */}
         <motion.a
           href="/docs"
           whileHover={{ scale: 1.05, y: -1 }}
@@ -680,7 +662,6 @@ export default function Header() {
           <span className="hidden sm:inline">Docs</span>
         </motion.a>
 
-        {/* Demo Mode Toggle */}
         <motion.button
           type="button"
           onClick={toggleDemoMode}
@@ -708,7 +689,6 @@ export default function Header() {
           <span className="hidden sm:inline">{demoMode ? 'Demo' : 'Live'}</span>
         </motion.button>
 
-        {/* API status with enhanced indicator */}
         <motion.div 
           className="shrink-0 flex items-center gap-1.5 text-xs"
           animate={connected && !demoMode ? { 
@@ -727,7 +707,6 @@ export default function Header() {
         </motion.div>
       </div>
 
-      {/* ── Vulnerability Alerts ──────────────────────────────────── */}
       <AnimatePresence>
         {showVulnAlerts && vulnerabilityAlerts.length > 0 && (
           <motion.div
@@ -748,7 +727,6 @@ export default function Header() {
         )}
       </AnimatePresence>
 
-      {/* ── Feedback with animation ───────────────────────────────── */}
       <AnimatePresence>
         {(error || successMsg) && (
           <motion.div
@@ -762,7 +740,6 @@ export default function Header() {
         )}
       </AnimatePresence>
 
-      {/* ── Row 2: Level 1 — ecosystem selector ──────────────────── */}
       {uniqueEcos.length > 0 && (
         <motion.div 
           initial={{ opacity: 0, y: -20 }}
@@ -798,7 +775,6 @@ export default function Header() {
             );
           })}
 
-          {/* dep counts on the right */}
           <motion.div 
             className="ml-auto flex items-center gap-3"
             initial={{ opacity: 0 }}
@@ -825,7 +801,6 @@ export default function Header() {
         </motion.div>
       )}
 
-      {/* ── Row 3: Level 2 — manifest selector ───────────────────── */}
       {currentManifests.length > 0 && (
         <motion.div 
           initial={{ opacity: 0, y: -20 }}
