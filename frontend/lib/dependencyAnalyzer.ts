@@ -1,3 +1,4 @@
+// lib/dependencyAnalyzer.ts
 import type {
   PackageJson,
   PythonRequirement,
@@ -152,19 +153,14 @@ export class DependencyAnalyzer {
     if (currentDepth > maxDepth) return;
 
     Object.entries(dependencies).forEach(([name, versionRange]) => {
-      // Extract version (simplified - real implementation would resolve it)
       const version = this.extractVersion(versionRange);
-
-      // Check if node already exists
       const nodeKey = `${name}@${version}`;
       let node = this.nodes.get(nodeKey);
 
       if (!node) {
-        // Create new node
         node = this.createNode(name, version, type, 'npm');
       }
 
-      // Create edge
       this.edges.push({
         id: `edge-${this.edges.length}`,
         source: parentId,
@@ -187,8 +183,6 @@ export class DependencyAnalyzer {
     extraMetadata: Partial<PackageMetadata> = {}
   ): DependencyNode {
     const nodeKey = `${name}@${version}`;
-    
-    // Return existing node if found
     if (this.nodes.has(nodeKey)) {
       return this.nodes.get(nodeKey)!;
     }
@@ -219,7 +213,6 @@ export class DependencyAnalyzer {
    * Extract version from version range
    */
   private extractVersion(versionRange: string): string {
-    // Remove operators: ^, ~, >=, <=, >, <, =
     return versionRange.replace(/[\^~>=<]/g, '').trim() || 'latest';
   }
 
@@ -231,11 +224,8 @@ export class DependencyAnalyzer {
 
     content.split('\n').forEach(line => {
       line = line.trim();
-
-      // Skip empty lines and comments
       if (!line || line.startsWith('#')) return;
 
-      // Parse requirement
       const match = line.match(/^([a-zA-Z0-9_-]+)(==|>=|<=|~=|>|<)?(.+)?$/);
       if (match) {
         requirements.push({
@@ -258,7 +248,6 @@ export class DependencyAnalyzer {
   ): DependencyAnalysis {
     const nodesArray = Array.from(this.nodes.values());
 
-    // Count dependencies by type
     const directDeps = nodesArray.filter(
       n => n.metadata.dependencyType === 'direct'
     ).length;
@@ -275,7 +264,6 @@ export class DependencyAnalyzer {
       n => n.metadata.dependencyType === 'transitive'
     ).length;
 
-    // License distribution
     const licenseDistribution: Record<string, number> = {};
     nodesArray.forEach(node => {
       const license = node.metadata.license || 'Unknown';
@@ -291,8 +279,8 @@ export class DependencyAnalyzer {
       devDependencies: devDeps,
       peerDependencies: peerDeps,
       optionalDependencies: optionalDeps,
-      vulnerablePackages: 0,  // Would be populated by vulnerability scanner
-      outdatedPackages: 0,    // Would be populated by version checker
+      vulnerablePackages: 0,
+      outdatedPackages: 0,
       licenseDistribution,
       nodes: nodesArray,
       edges: this.edges,
@@ -315,7 +303,6 @@ export class DependencyAnalyzer {
       children: [],
     };
 
-    // Add direct dependencies
     if (packageJson.dependencies) {
       Object.entries(packageJson.dependencies).forEach(([name, version]) => {
         root.children.push({
@@ -344,14 +331,12 @@ export class DependencyAnalyzer {
       recursionStack.add(nodeId);
       path.push(nodeId);
 
-      // Find outgoing edges
       const outgoingEdges = this.edges.filter(e => e.source === nodeId);
 
       for (const edge of outgoingEdges) {
         if (!visited.has(edge.target)) {
           dfs(edge.target, [...path]);
         } else if (recursionStack.has(edge.target)) {
-          // Found circular dependency
           const cycleStart = path.indexOf(edge.target);
           circular.push([...path.slice(cycleStart), edge.target]);
         }
@@ -370,7 +355,7 @@ export class DependencyAnalyzer {
   }
 
   /**
-   * Get dependency depth (longest path from root)
+   * Get dependency depth
    */
   getDependencyDepth(nodeId: string): number {
     const visited = new Set<string>();
@@ -379,14 +364,10 @@ export class DependencyAnalyzer {
     const dfs = (currentId: string, depth: number): void => {
       if (visited.has(currentId)) return;
       visited.add(currentId);
-
       maxDepth = Math.max(maxDepth, depth);
 
-      // Find outgoing edges
       const outgoingEdges = this.edges.filter(e => e.source === currentId);
-      outgoingEdges.forEach(edge => {
-        dfs(edge.target, depth + 1);
-      });
+      outgoingEdges.forEach(edge => dfs(edge.target, depth + 1));
     };
 
     dfs(nodeId, 0);
@@ -394,13 +375,10 @@ export class DependencyAnalyzer {
   }
 
   /**
-   * Get all dependents of a package (reverse dependencies)
+   * Get all dependents of a package
    */
   getDependents(nodeId: string): DependencyNode[] {
-    const dependentIds = this.edges
-      .filter(e => e.target === nodeId)
-      .map(e => e.source);
-
+    const dependentIds = this.edges.filter(e => e.target === nodeId).map(e => e.source);
     return dependentIds
       .map(id => Array.from(this.nodes.values()).find(n => n.id === id))
       .filter(Boolean) as DependencyNode[];
@@ -410,10 +388,7 @@ export class DependencyAnalyzer {
    * Get all dependencies of a package
    */
   getDependencies(nodeId: string): DependencyNode[] {
-    const dependencyIds = this.edges
-      .filter(e => e.source === nodeId)
-      .map(e => e.target);
-
+    const dependencyIds = this.edges.filter(e => e.source === nodeId).map(e => e.target);
     return dependencyIds
       .map(id => Array.from(this.nodes.values()).find(n => n.id === id))
       .filter(Boolean) as DependencyNode[];
