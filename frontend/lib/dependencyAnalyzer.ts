@@ -19,9 +19,6 @@ export class DependencyAnalyzer {
   private edges: DependencyEdge[] = [];
   private nodeIdCounter = 0;
 
-  /**
-   * Parse package.json and build dependency graph
-   */
   parsePackageJson(
     packageJson: PackageJson,
     options: ScanOptions = {}
@@ -32,7 +29,15 @@ export class DependencyAnalyzer {
     this.edges = [];
     this.nodeIdCounter = 0;
 
-    // Create root node
+    // Normalize repository type
+    let repo: { type: 'git' | 'svn' | 'mercurial'; url: string } | undefined;
+    if (packageJson.repository && packageJson.repository.url) {
+      const type = packageJson.repository.type?.toLowerCase();
+      if (type === 'git' || type === 'svn' || type === 'mercurial') {
+        repo = { type, url: packageJson.repository.url };
+      }
+    }
+
     const rootNode = this.createNode(
       packageJson.name,
       packageJson.version,
@@ -40,12 +45,11 @@ export class DependencyAnalyzer {
       PackageManager.NPM,
       {
         description: packageJson.description,
-        repository: packageJson.repository,
+        repository: repo,
         license: packageJson.license,
       }
     );
 
-    // Process dependencies
     if (packageJson.dependencies) {
       this.processDependencies(
         rootNode.id,
@@ -56,7 +60,6 @@ export class DependencyAnalyzer {
       );
     }
 
-    // Process dev dependencies
     if (includeDevDependencies && packageJson.devDependencies) {
       this.processDependencies(
         rootNode.id,
@@ -67,7 +70,6 @@ export class DependencyAnalyzer {
       );
     }
 
-    // Process peer dependencies
     if (packageJson.peerDependencies) {
       this.processDependencies(
         rootNode.id,
@@ -78,7 +80,6 @@ export class DependencyAnalyzer {
       );
     }
 
-    // Process optional dependencies
     if (packageJson.optionalDependencies) {
       this.processDependencies(
         rootNode.id,
@@ -92,9 +93,6 @@ export class DependencyAnalyzer {
     return this.generateAnalysis(packageJson.name, PackageManager.NPM);
   }
 
-  /**
-   * Parse requirements.txt (Python) and build dependency graph
-   */
   parseRequirementsTxt(
     content: string,
     projectName: string = 'python-project'
@@ -103,7 +101,6 @@ export class DependencyAnalyzer {
     this.edges = [];
     this.nodeIdCounter = 0;
 
-    // Create root node
     const rootNode = this.createNode(
       projectName,
       '1.0.0',
@@ -111,10 +108,8 @@ export class DependencyAnalyzer {
       PackageManager.PIP
     );
 
-    // Parse requirements
     const requirements = this.parseRequirementsContent(content);
 
-    // Create nodes for each requirement
     requirements.forEach(req => {
       const depNode = this.createNode(
         req.name,
@@ -123,7 +118,6 @@ export class DependencyAnalyzer {
         PackageManager.PIP
       );
 
-      // Create edge
       this.edges.push({
         id: `edge-${this.edges.length}`,
         source: rootNode.id,
@@ -139,9 +133,6 @@ export class DependencyAnalyzer {
     return this.generateAnalysis(projectName, PackageManager.PIP);
   }
 
-  /**
-   * Process dependencies recursively
-   */
   private processDependencies(
     parentId: string,
     dependencies: Record<string, string>,
@@ -171,9 +162,6 @@ export class DependencyAnalyzer {
     });
   }
 
-  /**
-   * Create a dependency node
-   */
   private createNode(
     name: string,
     version: string,
@@ -208,16 +196,10 @@ export class DependencyAnalyzer {
     return node;
   }
 
-  /**
-   * Extract version from version range
-   */
   private extractVersion(versionRange: string): string {
     return versionRange.replace(/[\^~>=<]/g, '').trim() || 'latest';
   }
 
-  /**
-   * Parse requirements.txt content
-   */
   private parseRequirementsContent(content: string): PythonRequirement[] {
     const requirements: PythonRequirement[] = [];
 
@@ -238,9 +220,6 @@ export class DependencyAnalyzer {
     return requirements;
   }
 
-  /**
-   * Generate analysis report
-   */
   private generateAnalysis(
     projectName: string,
     packageManager: PackageManager
@@ -287,9 +266,6 @@ export class DependencyAnalyzer {
     };
   }
 
-  /**
-   * Build dependency tree structure
-   */
   buildDependencyTree(
     packageJson: PackageJson,
     maxDepth: number = 3
@@ -317,9 +293,6 @@ export class DependencyAnalyzer {
     return root;
   }
 
-  /**
-   * Find circular dependencies
-   */
   findCircularDependencies(): Array<string[]> {
     const circular: Array<string[]> = [];
     const visited = new Set<string>();
@@ -350,9 +323,6 @@ export class DependencyAnalyzer {
     return circular;
   }
 
-  /**
-   * Get dependency depth (longest path from root)
-   */
   getDependencyDepth(nodeId: string): number {
     const visited = new Set<string>();
     let maxDepth = 0;
@@ -371,9 +341,6 @@ export class DependencyAnalyzer {
     return maxDepth;
   }
 
-  /**
-   * Get all dependents of a package (reverse dependencies)
-   */
   getDependents(nodeId: string): DependencyNode[] {
     const dependentIds = this.edges
       .filter(e => e.target === nodeId)
@@ -384,9 +351,6 @@ export class DependencyAnalyzer {
       .filter(Boolean) as DependencyNode[];
   }
 
-  /**
-   * Get all dependencies of a package
-   */
   getDependencies(nodeId: string): DependencyNode[] {
     const dependencyIds = this.edges
       .filter(e => e.source === nodeId)
@@ -397,9 +361,6 @@ export class DependencyAnalyzer {
       .filter(Boolean) as DependencyNode[];
   }
 
-  /**
-   * Export to JSON format compatible with OpenPulse
-   */
   exportToGraph(): { nodes: DependencyNode[]; edges: DependencyEdge[] } {
     return {
       nodes: Array.from(this.nodes.values()),
