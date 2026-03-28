@@ -1,4 +1,4 @@
-import type { CyberNode, CyberEdge, IPNodeMetadata, ThreatNodeMetadata, VulnerabilityNodeMetadata } from '@/types/cyber';
+import type { CyberNode, CyberEdge, IPNodeMetadata, ThreatNodeMetadata, VulnerabilityNodeMetadata, IPType, ThreatType, AttackTechnique } from '@/types/cyber';
 
 /**
  * Generate sample cyber intelligence graph
@@ -25,10 +25,10 @@ export function generateCyberIntelGraph(config: {
   for (let i = 0; i < ipCount; i++) {
     const isMalicious = Math.random() > 0.6;
     const reputation = isMalicious ? Math.random() * 40 : 60 + Math.random() * 40;
-    
+
     const metadata: IPNodeMetadata = {
       ipAddress: `${192 + Math.floor(Math.random() * 64)}.${Math.floor(Math.random() * 256)}.${Math.floor(Math.random() * 256)}.${Math.floor(Math.random() * 256)}`,
-      ipType: 'public',
+      ipType: 'public' as IPType, // fixed type
       isMalicious,
       reputation,
       geolocation: {
@@ -68,11 +68,11 @@ export function generateCyberIntelGraph(config: {
   for (let i = 0; i < threatCount; i++) {
     const severities: ('critical' | 'high' | 'medium' | 'low')[] = ['critical', 'high', 'medium', 'low'];
     const severity = severities[Math.floor(Math.random() * severities.length)];
-    
+
     const metadata: ThreatNodeMetadata = {
       threatId: `THR-${1000 + i}`,
       threatName: threatNames[i % threatNames.length],
-      threatType: ['apt', 'cybercrime', 'nation_state'][Math.floor(Math.random() * 3)] as any,
+      threatType: ['apt', 'cybercrime', 'nation_state'][Math.floor(Math.random() * 3)] as ThreatType,
       severity,
       isActive: Math.random() > 0.3,
       techniques: [
@@ -81,7 +81,7 @@ export function generateCyberIntelGraph(config: {
         'persistence',
         'privilege_escalation',
         'credential_access',
-      ].slice(0, 2 + Math.floor(Math.random() * 3)) as any,
+      ].slice(0, 2 + Math.floor(Math.random() * 3)) as AttackTechnique[],
       targetedSectors: ['Financial', 'Healthcare', 'Government', 'Technology'],
       confidence: 60 + Math.random() * 40,
       firstSeen: new Date(Date.now() - Math.random() * 365 * 24 * 60 * 60 * 1000).toISOString(),
@@ -148,13 +148,13 @@ export function generateCyberIntelGraph(config: {
     });
   }
 
-  // Generate Assets (services, libraries, etc.)
-  const assetTypes: ('service' | 'library' | 'database' | 'api' | 'server')[] = 
+  // Generate Assets
+  const assetTypes: ('service' | 'library' | 'database' | 'api' | 'server')[] =
     ['service', 'library', 'database', 'api', 'server'];
 
   for (let i = 0; i < assetCount; i++) {
     const type = assetTypes[Math.floor(Math.random() * assetTypes.length)];
-    
+
     nodes.push({
       id: `asset-${nodeId++}`,
       label: `${type.charAt(0).toUpperCase() + type.slice(1)} ${i + 1}`,
@@ -171,15 +171,14 @@ export function generateCyberIntelGraph(config: {
   }
 
   // Generate Edges
+  const threats = nodes.filter(n => n.type === 'threat');
+  const assets = nodes.filter(n => assetTypes.includes(n.type as any));
 
   // Threats target assets
-  const threats = nodes.filter(n => n.type === 'threat');
-  const assets = nodes.filter(n => ['service', 'library', 'database', 'api', 'server'].includes(n.type));
-  
   threats.forEach(threat => {
     const targetCount = 1 + Math.floor(Math.random() * 3);
     const targets = assets.sort(() => Math.random() - 0.5).slice(0, targetCount);
-    
+
     targets.forEach(target => {
       edges.push({
         id: `edge-${edgeId++}`,
@@ -194,11 +193,11 @@ export function generateCyberIntelGraph(config: {
 
   // Threats exploit vulnerabilities
   const vulns = nodes.filter(n => n.type === 'vulnerability');
-  
+
   threats.forEach(threat => {
     const vulnCount = 1 + Math.floor(Math.random() * 2);
     const targetVulns = vulns.sort(() => Math.random() - 0.5).slice(0, vulnCount);
-    
+
     targetVulns.forEach(vuln => {
       edges.push({
         id: `edge-${edgeId++}`,
@@ -215,7 +214,7 @@ export function generateCyberIntelGraph(config: {
   vulns.forEach(vuln => {
     const affectCount = 1 + Math.floor(Math.random() * 3);
     const affected = assets.sort(() => Math.random() - 0.5).slice(0, affectCount);
-    
+
     affected.forEach(asset => {
       edges.push({
         id: `edge-${edgeId++}`,
@@ -230,11 +229,11 @@ export function generateCyberIntelGraph(config: {
 
   // IPs communicate with assets
   const ips = nodes.filter(n => n.type === 'ip');
-  
+
   ips.forEach(ip => {
     const commCount = 1 + Math.floor(Math.random() * 2);
     const targets = assets.sort(() => Math.random() - 0.5).slice(0, commCount);
-    
+
     targets.forEach(target => {
       edges.push({
         id: `edge-${edgeId++}`,
@@ -248,10 +247,7 @@ export function generateCyberIntelGraph(config: {
   });
 
   // Some malicious IPs are used by threats
-  const maliciousIPs = ips.filter(ip => {
-    const metadata = ip.metadata as IPNodeMetadata;
-    return metadata.isMalicious;
-  });
+  const maliciousIPs = ips.filter(ip => (ip.metadata as IPNodeMetadata).isMalicious);
 
   maliciousIPs.forEach(ip => {
     if (threats.length > 0 && Math.random() > 0.5) {
