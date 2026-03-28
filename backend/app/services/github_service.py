@@ -12,6 +12,7 @@ from __future__ import annotations
 import json
 import re
 from typing import Any, Optional
+import os
 
 import httpx
 
@@ -42,7 +43,17 @@ class GitHubService:
     RAW_URL  = "https://raw.githubusercontent.com"
 
     def __init__(self) -> None:
-        self.client = httpx.AsyncClient(timeout=30.0)
+        # Add GitHub token if available for higher rate limits
+        headers = {"Accept": "application/vnd.github+json"}
+        github_token = os.getenv("GITHUB_TOKEN", "").strip()
+        if github_token:
+            headers["Authorization"] = f"Bearer {github_token}"
+        
+        self.client = httpx.AsyncClient(
+            timeout=30.0,
+            headers=headers,
+            follow_redirects=True
+        )
 
     # ------------------------------------------------------------------ #
     #  Public API                                                          #
@@ -66,35 +77,102 @@ class GitHubService:
           ]
         }
         """
+        print(f"🔍 Scanning {owner}/{repo}...")
+        
+        # Get default branch
         branch = await self._default_branch(owner, repo)
-        tree   = await self._full_tree(owner, repo, branch)
+        print(f"📌 Using branch: {branch}")
+        
+        # Get full repository tree
+        tree = await self._full_tree(owner, repo, branch)
+        
+        if not tree:
+            print(f"⚠️ Could not fetch repository tree")
+            # Fallback: try to fetch common manifest files directly
+            return await self._fallback_scan(owner, repo, branch)
 
         # Filter tree to only manifest files (skip node_modules / vendor)
-        skip_dirs = {"node_modules", "vendor", ".git", "dist", "build", "venv", ".venv"}
+        skip_dirs = {"node_modules", "vendor", ".git", "dist", "build", "venv", ".venv", "target", "__pycache__"}
         found_paths: list[str] = []
+        
         for item in tree:
             path: str = item.get("path", "")
             parts = path.split("/")
             filename = parts[-1]
+            
             # skip hidden/vendor dirs
-            if any(p in skip_dirs for p in parts[:-1]):
+            if any(p in skip_dirs or p.startswith(".") for p in parts[:-1]):
                 continue
+            
             if filename in MANIFEST_FILES:
                 found_paths.append(path)
+                print(f"  ✓ Found: {path}")
 
+        if not found_paths:
+            print(f"⚠️ No manifest files found in tree, trying fallback...")
+            return await self._fallback_scan(owner, repo, branch)
+
+        # Fetch and parse each manifest
         manifests: list[dict] = []
         for path in found_paths:
             raw = await self._fetch_raw_text(owner, repo, branch, path)
             if raw is None:
+                print(f"  ✗ Could not fetch: {path}")
                 continue
+            
             ecosystem = ECOSYSTEM_MAP.get(path.split("/")[-1], "unknown")
-            manifests.append({
-                "path":      path,
-                "ecosystem": ecosystem,
-                "raw":       raw,
-                "parsed":    _parse_raw(path.split("/")[-1], raw),
-            })
+            parsed = _parse_raw(path.split("/")[-1], raw)
+            
+            if parsed and (parsed.get("dependencies") or parsed.get("devDependencies")):
+                manifests.append({
+                    "path":      path,
+                    "ecosystem": ecosystem,
+                    "raw":       raw,
+                    "parsed":    parsed,
+                })
+                print(f"  ✓ Parsed: {path} ({len(parsed.get('dependencies', {}))} deps)")
+            else:
+                print(f"  ⚠️ Skipped {path} (no dependencies found)")
 
+        print(f"✅ Total manifests loaded: {len(manifests)}")
+        return {"branch": branch, "manifests": manifests}
+
+    async def _fallback_scan(self, owner: str, repo: str, branch: str) -> dict[str, Any]:
+        """
+        Fallback: try to fetch common manifest files directly from root.
+        Used when tree API fails or returns nothing.
+        """
+        print("🔄 Fallback: checking common manifest locations...")
+        
+        common_paths = [
+            "package.json",
+            "requirements.txt",
+            "pyproject.toml",
+            "go.mod",
+            "Cargo.toml",
+            "frontend/package.json",
+            "backend/package.json",
+            "api/package.json",
+        ]
+        
+        manifests: list[dict] = []
+        
+        for path in common_paths:
+            raw = await self._fetch_raw_text(owner, repo, branch, path)
+            if raw:
+                filename = path.split("/")[-1]
+                ecosystem = ECOSYSTEM_MAP.get(filename, "unknown")
+                parsed = _parse_raw(filename, raw)
+                
+                if parsed and (parsed.get("dependencies") or parsed.get("devDependencies")):
+                    manifests.append({
+                        "path":      path,
+                        "ecosystem": ecosystem,
+                        "raw":       raw,
+                        "parsed":    parsed,
+                    })
+                    print(f"  ✓ Found via fallback: {path}")
+        
         return {"branch": branch, "manifests": manifests}
 
     async def fetch_package_json(
@@ -119,12 +197,18 @@ class GitHubService:
 
     async def _default_branch(self, owner: str, repo: str) -> str:
         try:
-            r = await self.client.get(
-                f"{self.BASE_URL}/repos/{owner}/{repo}",
-                headers={"Accept": "application/vnd.github+json"},
-            )
-            return r.json().get("default_branch", "main")
-        except Exception:
+            r = await self.client.get(f"{self.BASE_URL}/repos/{owner}/{repo}")
+            r.raise_for_status()
+            branch = r.json().get("default_branch", "main")
+            return branch
+        except httpx.HTTPStatusError as e:
+            if e.response.status_code == 404:
+                raise Exception(f"Repository {owner}/{repo} not found or is private")
+            elif e.response.status_code == 403:
+                raise Exception("GitHub API rate limit exceeded. Please add GITHUB_TOKEN environment variable.")
+            raise Exception(f"GitHub API error: {e}")
+        except Exception as e:
+            print(f"⚠️ Could not determine default branch: {e}, using 'main'")
             return "main"
 
     async def _full_tree(self, owner: str, repo: str, branch: str) -> list[dict]:
@@ -132,12 +216,30 @@ class GitHubService:
             r = await self.client.get(
                 f"{self.BASE_URL}/repos/{owner}/{repo}/git/trees/{branch}",
                 params={"recursive": "1"},
-                headers={"Accept": "application/vnd.github+json"},
             )
-            if r.status_code != 200:
+            
+            if r.status_code == 404:
+                # Try alternative branches
+                for alt_branch in ["master", "develop", "dev"]:
+                    r = await self.client.get(
+                        f"{self.BASE_URL}/repos/{owner}/{repo}/git/trees/{alt_branch}",
+                        params={"recursive": "1"},
+                    )
+                    if r.status_code == 200:
+                        print(f"  ℹ️ Using branch '{alt_branch}' instead")
+                        return r.json().get("tree", [])
+            
+            if r.status_code == 403:
+                print("⚠️ GitHub API rate limit exceeded")
                 return []
-            return r.json().get("tree", [])
-        except Exception:
+            
+            r.raise_for_status()
+            tree = r.json().get("tree", [])
+            print(f"  📂 Found {len(tree)} items in tree")
+            return tree
+            
+        except Exception as e:
+            print(f"⚠️ Tree fetch failed: {e}")
             return []
 
     async def _fetch_raw_text(
@@ -148,8 +250,17 @@ class GitHubService:
             r = await self.client.get(url)
             if r.status_code == 200:
                 return r.text
-        except Exception:
-            pass
+            elif r.status_code == 404:
+                # Try alternative branches for this specific file
+                for alt_branch in ["master", "develop", "dev"]:
+                    if alt_branch == branch:
+                        continue
+                    alt_url = f"{self.RAW_URL}/{owner}/{repo}/{alt_branch}/{path}"
+                    r = await self.client.get(alt_url)
+                    if r.status_code == 200:
+                        return r.text
+        except Exception as e:
+            print(f"  ✗ Fetch error for {path}: {e}")
         return None
 
 
@@ -173,8 +284,8 @@ def _parse_raw(filename: str, raw: str) -> Optional[dict]:
             return _parse_go_mod(raw)
         if filename == "Cargo.toml":
             return _parse_cargo_toml(raw)
-    except Exception:
-        pass
+    except Exception as e:
+        print(f"  ⚠️ Parse error for {filename}: {e}")
     return None
 
 
