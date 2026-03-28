@@ -1,3 +1,8 @@
+import {
+  PackageManager,
+  DependencyType
+} from '@/types/dependency';
+
 import type {
   PackageJson,
   PythonRequirement,
@@ -6,8 +11,6 @@ import type {
   DependencyAnalysis,
   DependencyTreeNode,
   PackageMetadata,
-  DependencyType,
-  PackageManager,
   ScanOptions,
 } from '@/types/dependency';
 
