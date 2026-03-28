@@ -210,6 +210,9 @@ pydantic-settings==2.1.0
 /**
  * Generate microservices architecture dependencies
  */
+/**
+ * Generate microservices architecture dependencies
+ */
 export function generateMicroservicesDependencies(): DependencyAnalysis {
   const packageJson: PackageJson = {
     name: 'microservices-platform',
@@ -248,6 +251,10 @@ export function generateMicroservicesDependencies(): DependencyAnalysis {
 
   const analyzer = new DependencyAnalyzer();
   const analysis = analyzer.parsePackageJson(packageJson);
-  if (!analysis) throw new Error('Failed to generate Microservices DependencyAnalysis');
+
+  if (!analysis) {
+    throw new Error('Dependency analysis failed for microservices project');
+  }
+
   return analysis;
 }
