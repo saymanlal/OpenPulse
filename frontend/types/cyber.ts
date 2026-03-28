@@ -14,11 +14,11 @@ export enum ThreatSeverity {
 
 // Vulnerability severity (CVSS-based)
 export enum VulnerabilitySeverity {
-  CRITICAL = 'critical',  // 9.0-10.0
-  HIGH = 'high',          // 7.0-8.9
-  MEDIUM = 'medium',      // 4.0-6.9
-  LOW = 'low',            // 0.1-3.9
-  NONE = 'none',          // 0.0
+  CRITICAL = 'critical',
+  HIGH = 'high',
+  MEDIUM = 'medium',
+  LOW = 'low',
+  NONE = 'none',
 }
 
 // IP address types
@@ -31,11 +31,11 @@ export enum IPType {
 
 // Threat actor types
 export enum ThreatActorType {
-  APT = 'apt',                    // Advanced Persistent Threat
-  CYBERCRIME = 'cybercrime',      // Criminal groups
-  HACKTIVIST = 'hacktivist',      // Ideologically motivated
-  INSIDER = 'insider',            // Internal threat
-  NATION_STATE = 'nation_state',  // State-sponsored
+  APT = 'apt',
+  CYBERCRIME = 'cybercrime',
+  HACKTIVIST = 'hacktivist',
+  INSIDER = 'insider',
+  NATION_STATE = 'nation_state',
   UNKNOWN = 'unknown',
 }
 
@@ -67,14 +67,14 @@ export interface IPNodeMetadata {
     latitude?: number;
     longitude?: number;
   };
-  asn?: number;              // Autonomous System Number
+  asn?: number;
   organization?: string;
   isMalicious?: boolean;
-  reputation?: number;       // 0-100 (0=malicious, 100=trusted)
-  lastSeen?: string;         // ISO timestamp
-  ports?: number[];          // Open ports
-  services?: string[];       // Running services
-  threatIntelFeeds?: string[]; // Which feeds flagged this IP
+  reputation?: number;
+  lastSeen?: string;
+  ports?: number[];
+  services?: string[];
+  threatIntelFeeds?: string[];
 }
 
 // Threat Node metadata
@@ -88,57 +88,50 @@ export interface ThreatNodeMetadata {
   firstSeen?: string;
   lastSeen?: string;
   isActive: boolean;
-  techniques?: AttackTechnique[]; // MITRE ATT&CK techniques
-  targetedSectors?: string[];     // Industries targeted
+  techniques?: AttackTechnique[];
+  targetedSectors?: string[];
   targetedCountries?: string[];
-  confidence?: number;             // 0-100
-  sources?: string[];              // Threat intel sources
+  confidence?: number;
+  sources?: string[];
 }
 
 // Vulnerability Node metadata
 export interface VulnerabilityNodeMetadata {
-  cveId?: string;              // CVE-2024-1234
-  cweId?: string;              // CWE-79
+  cveId?: string;
+  cweId?: string;
   severity: VulnerabilitySeverity;
-  cvssScore?: number;          // 0-10
-  cvssVector?: string;         // CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H
+  cvssScore?: number;
+  cvssVector?: string;
   description?: string;
-  published?: string;          // ISO timestamp
+  published?: string;
   lastModified?: string;
   exploitAvailable?: boolean;
   exploitedInWild?: boolean;
   patchAvailable?: boolean;
   affectedVersions?: string[];
   fixedVersions?: string[];
-  references?: string[];       // URLs to advisories
-  cwe?: string;                // Weakness type
+  references?: string[];
+  cwe?: string;
 }
 
 // Cyber Intelligence Node
 export interface CyberNode extends Omit<GraphNode, 'type' | 'metadata'> {
   type: CyberNodeType;
-  metadata?: IPNodeMetadata | ThreatNodeMetadata | VulnerabilityNodeMetadata | Record<string, any>;
+  metadata?: IPNodeMetadata | ThreatNodeMetadata | VulnerabilityNodeMetadata | Record<string, unknown>;
 }
 
 // Relationship types for cyber intelligence
 export enum CyberRelationType {
-  // IP relationships
   COMMUNICATES_WITH = 'communicates_with',
   ROUTES_THROUGH = 'routes_through',
   HOSTS = 'hosts',
-  
-  // Threat relationships
   TARGETS = 'targets',
   EXPLOITS = 'exploits',
   USES = 'uses',
   ATTRIBUTED_TO = 'attributed_to',
-  
-  // Vulnerability relationships
   AFFECTS = 'affects',
   MITIGATED_BY = 'mitigated_by',
   DEPENDS_ON = 'depends_on',
-  
-  // Generic
   RELATED_TO = 'related_to',
 }
 
@@ -146,10 +139,10 @@ export enum CyberRelationType {
 export interface CyberEdge extends Omit<GraphEdge, 'label'> {
   relationType?: CyberRelationType;
   label?: string;
-  confidence?: number;        // 0-1
+  confidence?: number;
   firstSeen?: string;
   lastSeen?: string;
-  metadata?: Record<string, any>;
+  metadata?: Record<string, unknown>;
 }
 
 // Attack Path
@@ -159,8 +152,8 @@ export interface AttackPath {
   nodes: CyberNode[];
   edges: CyberEdge[];
   severity: ThreatSeverity;
-  likelihood: number;         // 0-1
-  impact: number;             // 0-1
+  likelihood: number;
+  impact: number;
   techniques: AttackTechnique[];
   description?: string;
 }
@@ -173,7 +166,7 @@ export interface ThreatIntelReport {
   severity: ThreatSeverity;
   threats: CyberNode[];
   vulnerabilities: CyberNode[];
-  indicators: CyberNode[];    // IPs, domains, etc.
+  indicators: CyberNode[];
   attackPaths: AttackPath[];
   recommendations: string[];
   confidence: number;

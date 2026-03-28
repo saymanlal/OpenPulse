@@ -1,6 +1,6 @@
 import {
   PackageManager,
-  DependencyType
+  DependencyType,
 } from '@/types/dependency';
 
 import type {
@@ -29,7 +29,6 @@ export class DependencyAnalyzer {
     this.edges = [];
     this.nodeIdCounter = 0;
 
-    // Normalize repository type
     let repo: { type: 'git' | 'svn' | 'mercurial'; url: string } | undefined;
     if (packageJson.repository && packageJson.repository.url) {
       const type = packageJson.repository.type?.toLowerCase();
@@ -95,7 +94,7 @@ export class DependencyAnalyzer {
 
   parseRequirementsTxt(
     content: string,
-    projectName: string = 'python-project'
+    projectName = 'python-project'
   ): DependencyAnalysis {
     this.nodes.clear();
     this.edges = [];
@@ -110,7 +109,7 @@ export class DependencyAnalyzer {
 
     const requirements = this.parseRequirementsContent(content);
 
-    requirements.forEach(req => {
+    requirements.forEach((req) => {
       const depNode = this.createNode(
         req.name,
         req.version || 'latest',
@@ -203,7 +202,7 @@ export class DependencyAnalyzer {
   private parseRequirementsContent(content: string): PythonRequirement[] {
     const requirements: PythonRequirement[] = [];
 
-    content.split('\n').forEach(line => {
+    content.split('\n').forEach((line) => {
       line = line.trim();
       if (!line || line.startsWith('#')) return;
 
@@ -227,24 +226,24 @@ export class DependencyAnalyzer {
     const nodesArray = Array.from(this.nodes.values());
 
     const directDeps = nodesArray.filter(
-      n => n.metadata.dependencyType === DependencyType.DIRECT
+      (n) => n.metadata.dependencyType === DependencyType.DIRECT
     ).length;
     const devDeps = nodesArray.filter(
-      n => n.metadata.dependencyType === DependencyType.DEV
+      (n) => n.metadata.dependencyType === DependencyType.DEV
     ).length;
     const peerDeps = nodesArray.filter(
-      n => n.metadata.dependencyType === DependencyType.PEER
+      (n) => n.metadata.dependencyType === DependencyType.PEER
     ).length;
     const optionalDeps = nodesArray.filter(
-      n => n.metadata.dependencyType === DependencyType.OPTIONAL
+      (n) => n.metadata.dependencyType === DependencyType.OPTIONAL
     ).length;
     const transitiveDeps = nodesArray.filter(
-      n => n.metadata.dependencyType === DependencyType.TRANSITIVE
+      (n) => n.metadata.dependencyType === DependencyType.TRANSITIVE
     ).length;
 
     const licenseDistribution: Record<string, number> = {};
-    nodesArray.forEach(node => {
-      const license = node.metadata.license || 'Unknown';
+    nodesArray.forEach((node) => {
+      const license = (node.metadata.license as string) || 'Unknown';
       licenseDistribution[license] = (licenseDistribution[license] || 0) + 1;
     });
 
@@ -268,7 +267,7 @@ export class DependencyAnalyzer {
 
   buildDependencyTree(
     packageJson: PackageJson,
-    maxDepth: number = 3
+    maxDepth = 3
   ): DependencyTreeNode {
     const root: DependencyTreeNode = {
       name: packageJson.name,
@@ -303,7 +302,7 @@ export class DependencyAnalyzer {
       recursionStack.add(nodeId);
       path.push(nodeId);
 
-      const outgoingEdges = this.edges.filter(e => e.source === nodeId);
+      const outgoingEdges = this.edges.filter((e) => e.source === nodeId);
       for (const edge of outgoingEdges) {
         if (!visited.has(edge.target)) {
           dfs(edge.target, [...path]);
@@ -316,7 +315,7 @@ export class DependencyAnalyzer {
       recursionStack.delete(nodeId);
     };
 
-    Array.from(this.nodes.values()).forEach(node => {
+    Array.from(this.nodes.values()).forEach((node) => {
       if (!visited.has(node.id)) dfs(node.id, []);
     });
 
@@ -330,11 +329,9 @@ export class DependencyAnalyzer {
     const dfs = (currentId: string, depth: number): void => {
       if (visited.has(currentId)) return;
       visited.add(currentId);
-
       maxDepth = Math.max(maxDepth, depth);
-
-      const outgoingEdges = this.edges.filter(e => e.source === currentId);
-      outgoingEdges.forEach(edge => dfs(edge.target, depth + 1));
+      const outgoingEdges = this.edges.filter((e) => e.source === currentId);
+      outgoingEdges.forEach((edge) => dfs(edge.target, depth + 1));
     };
 
     dfs(nodeId, 0);
@@ -343,21 +340,21 @@ export class DependencyAnalyzer {
 
   getDependents(nodeId: string): DependencyNode[] {
     const dependentIds = this.edges
-      .filter(e => e.target === nodeId)
-      .map(e => e.source);
+      .filter((e) => e.target === nodeId)
+      .map((e) => e.source);
 
     return dependentIds
-      .map(id => Array.from(this.nodes.values()).find(n => n.id === id))
+      .map((id) => Array.from(this.nodes.values()).find((n) => n.id === id))
       .filter(Boolean) as DependencyNode[];
   }
 
   getDependencies(nodeId: string): DependencyNode[] {
     const dependencyIds = this.edges
-      .filter(e => e.source === nodeId)
-      .map(e => e.target);
+      .filter((e) => e.source === nodeId)
+      .map((e) => e.target);
 
     return dependencyIds
-      .map(id => Array.from(this.nodes.values()).find(n => n.id === id))
+      .map((id) => Array.from(this.nodes.values()).find((n) => n.id === id))
       .filter(Boolean) as DependencyNode[];
   }
 

@@ -9,15 +9,11 @@ import { DependencyAnalyzer } from './dependencyAnalyzer';
 export class GitHubScanner {
   private apiBase = 'https://api.github.com';
 
-  /**
-   * Parse GitHub URL to extract owner and repo
-   */
   parseGitHubUrl(url: string): GitHubRepository | null {
-    // Support various GitHub URL formats
     const patterns = [
-      /github\.com\/([^\/]+)\/([^\/]+)/,           // https://github.com/owner/repo
-      /github\.com\/([^\/]+)\/([^\/]+)\.git/,      // https://github.com/owner/repo.git
-      /git@github\.com:([^\/]+)\/([^\/]+)\.git/,   // git@github.com:owner/repo.git
+      /github\.com\/([^/]+)\/([^/]+)/,
+      /github\.com\/([^/]+)\/([^/]+)\.git/,
+      /git@github\.com:([^/]+)\/([^/]+)\.git/,
     ];
 
     for (const pattern of patterns) {
@@ -25,7 +21,7 @@ export class GitHubScanner {
       if (match) {
         const owner = match[1];
         const repo = match[2].replace('.git', '');
-        
+
         return {
           owner,
           repo,
@@ -38,43 +34,29 @@ export class GitHubScanner {
     return null;
   }
 
-  /**
-   * Fetch repository information from GitHub API
-   */
-  async fetchRepositoryInfo(
-    owner: string,
-    repo: string
-  ): Promise<GitHubRepository> {
-    try {
-      const response = await fetch(`${this.apiBase}/repos/${owner}/${repo}`);
-      
-      if (!response.ok) {
-        throw new Error(`GitHub API error: ${response.status}`);
-      }
+  async fetchRepositoryInfo(owner: string, repo: string): Promise<GitHubRepository> {
+    const response = await fetch(`${this.apiBase}/repos/${owner}/${repo}`);
 
-      const data = await response.json();
-
-      return {
-        owner,
-        repo,
-        fullName: data.full_name,
-        url: data.html_url,
-        description: data.description,
-        stars: data.stargazers_count,
-        forks: data.forks_count,
-        openIssues: data.open_issues_count,
-        license: data.license?.spdx_id,
-        language: data.language,
-      };
-    } catch (error) {
-      console.error('Failed to fetch repository info:', error);
-      throw error;
+    if (!response.ok) {
+      throw new Error(`GitHub API error: ${response.status}`);
     }
+
+    const data = await response.json() as Record<string, unknown>;
+
+    return {
+      owner,
+      repo,
+      fullName: data.full_name as string,
+      url: data.html_url as string,
+      description: data.description as string | undefined,
+      stars: data.stargazers_count as number | undefined,
+      forks: data.forks_count as number | undefined,
+      openIssues: data.open_issues_count as number | undefined,
+      license: (data.license as Record<string, string> | null)?.spdx_id,
+      language: data.language as string | undefined,
+    };
   }
 
-  /**
-   * Check if repository has package.json
-   */
   async hasPackageJson(owner: string, repo: string): Promise<boolean> {
     try {
       const response = await fetch(
@@ -86,9 +68,6 @@ export class GitHubScanner {
     }
   }
 
-  /**
-   * Check if repository has requirements.txt
-   */
   async hasRequirementsTxt(owner: string, repo: string): Promise<boolean> {
     try {
       const response = await fetch(
@@ -100,76 +79,53 @@ export class GitHubScanner {
     }
   }
 
-  /**
-   * Fetch package.json from GitHub repository
-   */
   async fetchPackageJson(
     owner: string,
     repo: string,
-    branch: string = 'main'
+    branch = 'main'
   ): Promise<PackageJson> {
-    try {
-      // Try main branch first
-      let response = await fetch(
-        `${this.apiBase}/repos/${owner}/${repo}/contents/package.json?ref=${branch}`
+    let response = await fetch(
+      `${this.apiBase}/repos/${owner}/${repo}/contents/package.json?ref=${branch}`
+    );
+
+    if (!response.ok && branch === 'main') {
+      response = await fetch(
+        `${this.apiBase}/repos/${owner}/${repo}/contents/package.json?ref=master`
       );
-
-      // If main doesn't exist, try master
-      if (!response.ok && branch === 'main') {
-        response = await fetch(
-          `${this.apiBase}/repos/${owner}/${repo}/contents/package.json?ref=master`
-        );
-      }
-
-      if (!response.ok) {
-        throw new Error(`Failed to fetch package.json: ${response.status}`);
-      }
-
-      const data = await response.json();
-
-      // GitHub API returns base64 encoded content
-      const content = atob(data.content);
-      return JSON.parse(content) as PackageJson;
-    } catch (error) {
-      console.error('Failed to fetch package.json:', error);
-      throw error;
     }
+
+    if (!response.ok) {
+      throw new Error(`Failed to fetch package.json: ${response.status}`);
+    }
+
+    const data = await response.json() as { content: string };
+    const content = atob(data.content);
+    return JSON.parse(content) as PackageJson;
   }
 
-  /**
-   * Fetch requirements.txt from GitHub repository
-   */
   async fetchRequirementsTxt(
     owner: string,
     repo: string,
-    branch: string = 'main'
+    branch = 'main'
   ): Promise<string> {
-    try {
-      let response = await fetch(
-        `${this.apiBase}/repos/${owner}/${repo}/contents/requirements.txt?ref=${branch}`
+    let response = await fetch(
+      `${this.apiBase}/repos/${owner}/${repo}/contents/requirements.txt?ref=${branch}`
+    );
+
+    if (!response.ok && branch === 'main') {
+      response = await fetch(
+        `${this.apiBase}/repos/${owner}/${repo}/contents/requirements.txt?ref=master`
       );
-
-      if (!response.ok && branch === 'main') {
-        response = await fetch(
-          `${this.apiBase}/repos/${owner}/${repo}/contents/requirements.txt?ref=master`
-        );
-      }
-
-      if (!response.ok) {
-        throw new Error(`Failed to fetch requirements.txt: ${response.status}`);
-      }
-
-      const data = await response.json();
-      return atob(data.content);
-    } catch (error) {
-      console.error('Failed to fetch requirements.txt:', error);
-      throw error;
     }
+
+    if (!response.ok) {
+      throw new Error(`Failed to fetch requirements.txt: ${response.status}`);
+    }
+
+    const data = await response.json() as { content: string };
+    return atob(data.content);
   }
 
-  /**
-   * Scan GitHub repository and analyze dependencies
-   */
   async scanRepository(
     githubUrl: string,
     options: ScanOptions = {}
@@ -181,11 +137,7 @@ export class GitHubScanner {
 
     const analyzer = new DependencyAnalyzer();
 
-    // Try to find and parse package.json
-    const hasPackageJson = await this.hasPackageJson(
-      repoInfo.owner,
-      repoInfo.repo
-    );
+    const hasPackageJson = await this.hasPackageJson(repoInfo.owner, repoInfo.repo);
 
     if (hasPackageJson) {
       const packageJson = await this.fetchPackageJson(
@@ -199,7 +151,6 @@ export class GitHubScanner {
       return analysis;
     }
 
-    // Try to find and parse requirements.txt
     const hasRequirements = await this.hasRequirementsTxt(
       repoInfo.owner,
       repoInfo.repo
@@ -212,10 +163,7 @@ export class GitHubScanner {
         repoInfo.branch
       );
 
-      const analysis = analyzer.parseRequirementsTxt(
-        requirements,
-        repoInfo.repo
-      );
+      const analysis = analyzer.parseRequirementsTxt(requirements, repoInfo.repo);
       analysis.repositoryUrl = repoInfo.url;
       return analysis;
     }
@@ -223,9 +171,6 @@ export class GitHubScanner {
     return null;
   }
 
-  /**
-   * Detect package manager from repository
-   */
   async detectPackageManager(
     owner: string,
     repo: string
@@ -240,9 +185,6 @@ export class GitHubScanner {
   }
 }
 
-/**
- * Helper function to scan GitHub URL
- */
 export async function scanGitHubRepository(
   url: string,
   options?: ScanOptions

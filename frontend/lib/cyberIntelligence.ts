@@ -22,40 +22,40 @@ export class CyberIntelligenceAnalyzer {
   }
 
   getIPNodes(): CyberNode[] {
-    return this.nodes.filter(node => node.type === 'ip');
+    return this.nodes.filter((node) => node.type === 'ip');
   }
 
   getThreatNodes(): CyberNode[] {
-    return this.nodes.filter(node => node.type === 'threat');
+    return this.nodes.filter((node) => node.type === 'threat');
   }
 
   getVulnerabilityNodes(): CyberNode[] {
-    return this.nodes.filter(node => node.type === 'vulnerability');
+    return this.nodes.filter((node) => node.type === 'vulnerability');
   }
 
   getMaliciousIPs(): CyberNode[] {
-    return this.getIPNodes().filter(node => {
+    return this.getIPNodes().filter((node) => {
       const metadata = node.metadata as IPNodeMetadata;
       return metadata?.isMalicious === true || (metadata?.reputation ?? 100) < 50;
     });
   }
 
   getActiveThreats(): CyberNode[] {
-    return this.getThreatNodes().filter(node => {
+    return this.getThreatNodes().filter((node) => {
       const metadata = node.metadata as ThreatNodeMetadata;
       return metadata?.isActive === true;
     });
   }
 
   getCriticalVulnerabilities(): CyberNode[] {
-    return this.getVulnerabilityNodes().filter(node => {
+    return this.getVulnerabilityNodes().filter((node) => {
       const metadata = node.metadata as VulnerabilityNodeMetadata;
       return metadata?.severity === 'critical';
     });
   }
 
   getExploitableVulnerabilities(): CyberNode[] {
-    return this.getVulnerabilityNodes().filter(node => {
+    return this.getVulnerabilityNodes().filter((node) => {
       const metadata = node.metadata as VulnerabilityNodeMetadata;
       return metadata?.exploitAvailable === true || metadata?.exploitedInWild === true;
     });
@@ -63,76 +63,80 @@ export class CyberIntelligenceAnalyzer {
 
   getThreatTargets(threatId: string): CyberNode[] {
     const targetEdges = this.edges.filter(
-      edge => edge.source === threatId && edge.relationType === 'targets'
+      (edge) => edge.source === threatId && edge.relationType === 'targets'
     );
     return targetEdges
-      .map(edge => this.nodes.find(node => node.id === edge.target))
+      .map((edge) => this.nodes.find((node) => node.id === edge.target))
       .filter(Boolean) as CyberNode[];
   }
 
   getThreatExploits(threatId: string): CyberNode[] {
     const exploitEdges = this.edges.filter(
-      edge => edge.source === threatId && edge.relationType === 'exploits'
+      (edge) => edge.source === threatId && edge.relationType === 'exploits'
     );
     return exploitEdges
-      .map(edge => this.nodes.find(node => node.id === edge.target))
+      .map((edge) => this.nodes.find((node) => node.id === edge.target))
       .filter(Boolean) as CyberNode[];
   }
 
   getVulnerabilityTargets(vulnId: string): CyberNode[] {
     const affectEdges = this.edges.filter(
-      edge => edge.source === vulnId && edge.relationType === 'affects'
+      (edge) => edge.source === vulnId && edge.relationType === 'affects'
     );
     return affectEdges
-      .map(edge => this.nodes.find(node => node.id === edge.target))
+      .map((edge) => this.nodes.find((node) => node.id === edge.target))
       .filter(Boolean) as CyberNode[];
   }
 
   getThreatsTargeting(assetId: string): CyberNode[] {
     const threatEdges = this.edges.filter(
-      edge => edge.target === assetId && edge.relationType === 'targets'
+      (edge) => edge.target === assetId && edge.relationType === 'targets'
     );
     return threatEdges
-      .map(edge => this.nodes.find(node => node.id === edge.source))
-      .filter(node => node?.type === 'threat') as CyberNode[];
+      .map((edge) => this.nodes.find((node) => node.id === edge.source))
+      .filter((node) => node?.type === 'threat') as CyberNode[];
   }
 
   getVulnerabilitiesAffecting(assetId: string): CyberNode[] {
     const vulnEdges = this.edges.filter(
-      edge => edge.target === assetId && edge.relationType === 'affects'
+      (edge) => edge.target === assetId && edge.relationType === 'affects'
     );
     return vulnEdges
-      .map(edge => this.nodes.find(node => node.id === edge.source))
-      .filter(node => node?.type === 'vulnerability') as CyberNode[];
+      .map((edge) => this.nodes.find((node) => node.id === edge.source))
+      .filter((node) => node?.type === 'vulnerability') as CyberNode[];
   }
 
   calculateThreatScore(nodeId: string): number {
-    const node = this.nodes.find(n => n.id === nodeId);
+    const node = this.nodes.find((n) => n.id === nodeId);
     if (!node) return 0;
 
     let score = 0;
 
     const threats = this.getThreatsTargeting(nodeId);
-    const activeThreats = threats.filter(t => {
+    const activeThreats = threats.filter((t) => {
       const metadata = t.metadata as ThreatNodeMetadata;
       return metadata?.isActive;
     });
     score += activeThreats.length * 0.3;
 
     const vulns = this.getVulnerabilitiesAffecting(nodeId);
-    const criticalVulns = vulns.filter(v => {
+    const criticalVulns = vulns.filter((v) => {
       const metadata = v.metadata as VulnerabilityNodeMetadata;
       return metadata?.severity === 'critical';
     });
     score += criticalVulns.length * 0.4;
 
     const maliciousIPs = this.edges
-      .filter(edge => (edge.source === nodeId || edge.target === nodeId) && edge.relationType === 'communicates_with')
-      .map(edge => {
+      .filter(
+        (edge) =>
+          (edge.source === nodeId || edge.target === nodeId) &&
+          edge.relationType === 'communicates_with'
+      )
+      .map((edge) => {
         const otherId = edge.source === nodeId ? edge.target : edge.source;
-        return this.nodes.find(n => n.id === otherId);
+        return this.nodes.find((n) => n.id === otherId);
       })
-      .filter(n => {
+      .filter((n) => {
         if (!n || n.type !== 'ip') return false;
         const metadata = n.metadata as IPNodeMetadata;
         return metadata?.isMalicious === true;
@@ -142,21 +146,26 @@ export class CyberIntelligenceAnalyzer {
     return Math.min(score, 1);
   }
 
-  findAttackPaths(threatId: string, targetId: string, maxDepth: number = 5): AttackPath[] {
+  findAttackPaths(threatId: string, targetId: string, maxDepth = 5): AttackPath[] {
     const paths: AttackPath[] = [];
     const visited = new Set<string>();
 
-    const dfs = (currentId: string, path: CyberNode[], edges: CyberEdge[], depth: number) => {
+    const dfs = (
+      currentId: string,
+      path: CyberNode[],
+      edges: CyberEdge[],
+      depth: number
+    ) => {
       if (depth > maxDepth) return;
       if (currentId === targetId) {
-        const threat = this.nodes.find(n => n.id === threatId);
+        const threat = this.nodes.find((n) => n.id === threatId);
         const threatMetadata = threat?.metadata as ThreatNodeMetadata;
         paths.push({
           id: `path-${paths.length}`,
           name: `Attack Path ${paths.length + 1}`,
           nodes: [...path],
           edges: [...edges],
-          severity: threatMetadata?.severity || 'medium',
+          severity: threatMetadata?.severity || ('medium' as ThreatSeverity),
           likelihood: this.calculatePathLikelihood(edges),
           impact: this.calculatePathImpact(path),
           techniques: this.extractTechniques(path),
@@ -168,12 +177,12 @@ export class CyberIntelligenceAnalyzer {
       if (visited.has(currentId)) return;
       visited.add(currentId);
 
-      const currentNode = this.nodes.find(n => n.id === currentId);
+      const currentNode = this.nodes.find((n) => n.id === currentId);
       if (!currentNode) return;
 
-      const outEdges = this.edges.filter(e => e.source === currentId);
+      const outEdges = this.edges.filter((e) => e.source === currentId);
       for (const edge of outEdges) {
-        const nextNode = this.nodes.find(n => n.id === edge.target);
+        const nextNode = this.nodes.find((n) => n.id === edge.target);
         if (!nextNode) continue;
         dfs(edge.target, [...path, nextNode], [...edges, edge], depth + 1);
       }
@@ -181,7 +190,7 @@ export class CyberIntelligenceAnalyzer {
       visited.delete(currentId);
     };
 
-    const startNode = this.nodes.find(n => n.id === threatId);
+    const startNode = this.nodes.find((n) => n.id === threatId);
     if (startNode) dfs(threatId, [startNode], [], 0);
 
     return paths;
@@ -189,22 +198,29 @@ export class CyberIntelligenceAnalyzer {
 
   private calculatePathLikelihood(edges: CyberEdge[]): number {
     if (!edges.length) return 0;
-    const avgConfidence = edges.reduce((sum, edge) => sum + (edge.confidence ?? 0.5), 0) / edges.length;
+    const avgConfidence =
+      edges.reduce((sum, edge) => sum + (edge.confidence ?? 0.5), 0) / edges.length;
     const lengthPenalty = Math.max(0, 1 - edges.length * 0.1);
     return avgConfidence * lengthPenalty;
   }
 
   private calculatePathImpact(nodes: CyberNode[]): number {
     let impact = 0;
-    nodes.forEach(node => {
+    nodes.forEach((node) => {
       if (node.type === 'vulnerability') {
         const metadata = node.metadata as VulnerabilityNodeMetadata;
         impact = Math.max(impact, (metadata?.cvssScore ?? 5) / 10);
       }
       if (node.type === 'threat') {
         const metadata = node.metadata as ThreatNodeMetadata;
-        const severityMap = { critical: 1, high: 0.8, medium: 0.5, low: 0.3, info: 0.1 };
-        impact = Math.max(impact, severityMap[metadata?.severity || 'medium']);
+        const severityMap: Record<string, number> = {
+          critical: 1,
+          high: 0.8,
+          medium: 0.5,
+          low: 0.3,
+          info: 0.1,
+        };
+        impact = Math.max(impact, severityMap[metadata?.severity || 'medium'] ?? 0.5);
       }
     });
     return impact;
@@ -212,10 +228,10 @@ export class CyberIntelligenceAnalyzer {
 
   private extractTechniques(nodes: CyberNode[]): AttackTechnique[] {
     const techniques = new Set<AttackTechnique>();
-    nodes.forEach(node => {
+    nodes.forEach((node) => {
       if (node.type === 'threat') {
         const metadata = node.metadata as ThreatNodeMetadata;
-        metadata?.techniques?.forEach(t => techniques.add(t));
+        metadata?.techniques?.forEach((t) => techniques.add(t));
       }
     });
     return Array.from(techniques);
@@ -227,6 +243,7 @@ export class CyberIntelligenceAnalyzer {
       const edge = edges[i];
       const sourceNode = nodes[i];
       const targetNode = nodes[i + 1];
+      if (!sourceNode || !targetNode) continue;
       const action = this.getActionDescription(edge.relationType);
       steps.push(`${sourceNode.label} ${action} ${targetNode.label}`);
     }
@@ -257,9 +274,8 @@ export class CyberIntelligenceAnalyzer {
     };
   }
 
-  /** Fixed type-safe severity method */
   getNodesBySeverity(severity: ThreatSeverity | VulnerabilitySeverity): CyberNode[] {
-    return this.nodes.filter(node => {
+    return this.nodes.filter((node) => {
       if (node.type === 'threat') {
         const metadata = node.metadata as ThreatNodeMetadata;
         return metadata?.severity === severity;
@@ -272,14 +288,24 @@ export class CyberIntelligenceAnalyzer {
     });
   }
 
-  getMostTargetedAssets(limit: number = 10): Array<{ node: CyberNode; threatCount: number }> {
+  getMostTargetedAssets(
+    limit = 10
+  ): Array<{ node: CyberNode; threatCount: number }> {
     const assetThreats = new Map<string, number>();
     this.edges
-      .filter(edge => edge.relationType === 'targets' || edge.relationType === 'affects')
-      .forEach(edge => assetThreats.set(edge.target, (assetThreats.get(edge.target) ?? 0) + 1));
+      .filter(
+        (edge) =>
+          edge.relationType === 'targets' || edge.relationType === 'affects'
+      )
+      .forEach((edge) =>
+        assetThreats.set(edge.target, (assetThreats.get(edge.target) ?? 0) + 1)
+      );
     return Array.from(assetThreats.entries())
-      .map(([nodeId, threatCount]) => ({ node: this.nodes.find(n => n.id === nodeId)!, threatCount }))
-      .filter(item => item.node)
+      .map(([nodeId, threatCount]) => ({
+        node: this.nodes.find((n) => n.id === nodeId)!,
+        threatCount,
+      }))
+      .filter((item) => item.node)
       .sort((a, b) => b.threatCount - a.threatCount)
       .slice(0, limit);
   }

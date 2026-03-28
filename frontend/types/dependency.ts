@@ -16,11 +16,11 @@ export enum PackageManager {
 
 // Dependency types
 export enum DependencyType {
-  DIRECT = 'direct',           // Listed in package.json
-  TRANSITIVE = 'transitive',   // Dependency of dependency
-  DEV = 'dev',                 // Development only
-  PEER = 'peer',               // Peer dependency
-  OPTIONAL = 'optional',       // Optional dependency
+  DIRECT = 'direct',
+  TRANSITIVE = 'transitive',
+  DEV = 'dev',
+  PEER = 'peer',
+  OPTIONAL = 'optional',
 }
 
 // License types
@@ -41,51 +41,31 @@ export interface PackageMetadata {
   version: string;
   packageManager: PackageManager;
   dependencyType: DependencyType;
-  
-  // Repository info
   repository?: {
     type: 'git' | 'svn' | 'mercurial';
     url: string;
   };
-  
-  // License
   license?: LicenseType | string;
-  
-  // Maintainers
   maintainers?: Array<{
     name: string;
     email?: string;
   }>;
-  
-  // Version info
   latestVersion?: string;
   isOutdated?: boolean;
-  
-  // Downloads & popularity
   downloads?: {
     daily?: number;
     weekly?: number;
     monthly?: number;
   };
   stars?: number;
-  
-  // Security
   vulnerabilities?: number;
   hasSecurityAdvisory?: boolean;
-  
-  // Dates
   publishedAt?: string;
   lastUpdated?: string;
-  
-  // Size
-  size?: number;  // in bytes
-  
-  // Description
+  size?: number;
   description?: string;
   homepage?: string;
-  
-  // Custom metadata
-  [key: string]: any;
+  [key: string]: unknown;
 }
 
 // Dependency node
@@ -97,7 +77,7 @@ export interface DependencyNode extends GraphNode {
 // Dependency edge
 export interface DependencyEdge extends GraphEdge {
   dependencyType?: DependencyType;
-  versionRange?: string;  // e.g., "^1.2.3"
+  versionRange?: string;
   isResolved?: boolean;
 }
 
@@ -115,14 +95,14 @@ export interface PackageJson {
     url: string;
   };
   license?: string;
-  [key: string]: any;
+  [key: string]: unknown;
 }
 
 // Requirements.txt (Python)
 export interface PythonRequirement {
   name: string;
   version?: string;
-  versionOperator?: string;  // ==, >=, <=, ~=, etc.
+  versionOperator?: string;
 }
 
 // Dependency analysis result
@@ -132,24 +112,14 @@ export interface DependencyAnalysis {
   totalDependencies: number;
   directDependencies: number;
   transitiveDependencies: number;
-  
-  // Counts by type
   devDependencies: number;
   peerDependencies: number;
   optionalDependencies: number;
-  
-  // Security
   vulnerablePackages: number;
   outdatedPackages: number;
-  
-  // Licenses
   licenseDistribution: Record<string, number>;
-  
-  // Graph data
   nodes: DependencyNode[];
   edges: DependencyEdge[];
-  
-  // Metadata
   analyzedAt: string;
   repositoryUrl?: string;
 }
@@ -159,18 +129,14 @@ export interface GitHubRepository {
   owner: string;
   repo: string;
   branch?: string;
-  fullName: string;  // owner/repo
+  fullName: string;
   url: string;
-  
-  // Repository metadata
   description?: string;
   stars?: number;
   forks?: number;
   openIssues?: number;
   license?: string;
   language?: string;
-  
-  // Files
   hasPackageJson?: boolean;
   hasRequirementsTxt?: boolean;
   hasCargoToml?: boolean;
@@ -191,8 +157,8 @@ export interface DependencyTreeNode {
 // Scan options
 export interface ScanOptions {
   includeDevDependencies?: boolean;
-  maxDepth?: number;  // How deep to scan transitive deps
-  fetchMetadata?: boolean;  // Fetch npm/pypi metadata
+  maxDepth?: number;
+  fetchMetadata?: boolean;
   checkVulnerabilities?: boolean;
   checkOutdated?: boolean;
 }
@@ -201,7 +167,7 @@ export interface ScanOptions {
 export interface PackageVulnerability {
   packageName: string;
   version: string;
-  vulnerabilityId: string;  // CVE or advisory ID
+  vulnerabilityId: string;
   severity: 'critical' | 'high' | 'medium' | 'low';
   title: string;
   description?: string;

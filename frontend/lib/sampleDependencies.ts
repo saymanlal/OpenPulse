@@ -1,9 +1,6 @@
 import type { PackageJson, DependencyAnalysis } from '@/types/dependency';
 import { DependencyAnalyzer } from './dependencyAnalyzer';
 
-/**
- * Generate sample package.json for testing
- */
 export function generateSamplePackageJson(): PackageJson {
   return {
     name: 'sample-web-app',
@@ -41,9 +38,6 @@ export function generateSamplePackageJson(): PackageJson {
   };
 }
 
-/**
- * Generate sample requirements.txt for Python
- */
 export function generateSampleRequirementsTxt(): string {
   return `# Web Framework
 Django==4.2.0
@@ -72,9 +66,6 @@ sentry-sdk==1.38.0
 `;
 }
 
-/**
- * Generate realistic dependency graph with metadata
- */
 export function generateRealisticDependencies(): DependencyAnalysis {
   const packageJson: PackageJson = {
     name: 'enterprise-dashboard',
@@ -138,9 +129,6 @@ export function generateRealisticDependencies(): DependencyAnalysis {
   return analysis;
 }
 
-/**
- * Generate Python project dependencies
- */
 export function generatePythonDependencies(): DependencyAnalysis {
   const requirements = `# Core Framework
 Django==4.2.7
@@ -207,12 +195,6 @@ pydantic-settings==2.1.0
   return analysis;
 }
 
-/**
- * Generate microservices architecture dependencies
- */
-/**
- * Generate microservices architecture dependencies
- */
 export function generateMicroservicesDependencies(): DependencyAnalysis {
   const packageJson: PackageJson = {
     name: 'microservices-platform',
@@ -228,7 +210,7 @@ export function generateMicroservicesDependencies(): DependencyAnalysis {
       '@nestjs/core': '^10.2.0',
       '@nestjs/common': '^10.2.0',
       mongoose: '^8.0.3',
-      'ioredis': '^5.3.2',
+      ioredis: '^5.3.2',
       '@prisma/client': '^5.7.0',
       consul: '^1.1.0',
       etcd3: '^1.1.2',
@@ -242,7 +224,7 @@ export function generateMicroservicesDependencies(): DependencyAnalysis {
       '@types/node': '^20.10.0',
       '@types/express': '^4.17.0',
       nodemon: '^3.0.2',
-      ts-node: '^10.9.2',
+      'ts-node': '^10.9.2',
       jest: '^29.7.0',
       supertest: '^6.3.3',
     },

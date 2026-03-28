@@ -34,7 +34,7 @@ const REAL_PACKAGE_NAMES = [
   'compression', 'express-rate-limit', 'express-validator',
 ];
 
-function seededRandom(seed: number) {
+function seededRandom(seed: number): () => number {
   let s = seed >>> 0;
   return () => {
     s = (Math.imul(1664525, s) + 1013904223) >>> 0;
@@ -79,7 +79,6 @@ export function generateDemoDataset(seed = 77777): GraphData {
 
   const rootId = nodes[0].id;
 
-  // Root connects to first 18 nodes (direct dependencies)
   for (let i = 1; i <= Math.min(18, nodes.length - 1); i++) {
     edges.push({
       id: `root-dep-${i}`,
@@ -89,7 +88,6 @@ export function generateDemoDataset(seed = 77777): GraphData {
     });
   }
 
-  // Each node gets 1-4 random connections (transitive dependencies)
   for (let i = 1; i < nodes.length; i++) {
     const connCount = Math.floor(rand() * 4) + 1;
     for (let j = 0; j < connCount; j++) {
@@ -116,15 +114,25 @@ export function getOrCreateDemoDataset(): GraphData {
       const parsed = JSON.parse(stored) as GraphData;
       if (parsed.nodes?.length === DEMO_NODE_COUNT) return parsed;
     }
-  } catch { /* regen */ }
+  } catch {
+    // regen on parse error
+  }
   const data = generateDemoDataset();
-  try { window.localStorage.setItem(DEMO_STORAGE_KEY, JSON.stringify(data)); } catch { /* ignore */ }
+  try {
+    window.localStorage.setItem(DEMO_STORAGE_KEY, JSON.stringify(data));
+  } catch {
+    // ignore storage errors
+  }
   return data;
 }
 
 export function persistDemoDataset(data: GraphData): void {
   if (typeof window === 'undefined') return;
-  try { window.localStorage.setItem(DEMO_STORAGE_KEY, JSON.stringify(data)); } catch { /* ignore */ }
+  try {
+    window.localStorage.setItem(DEMO_STORAGE_KEY, JSON.stringify(data));
+  } catch {
+    // ignore storage errors
+  }
 }
 
 export function evolveDemoDataset(current: GraphData): GraphData {

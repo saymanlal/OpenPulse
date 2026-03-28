@@ -27,16 +27,17 @@ export class ForceSimulation {
   private alpha: number;
   private config: ForceConfig;
 
-  constructor(nodes?: GraphNode[], edges?: GraphEdge[], config: ForceConfig = FORCE_CONFIG) {
-    // SAFETY: guarantee arrays
+  constructor(
+    nodes?: GraphNode[],
+    edges?: GraphEdge[],
+    config: ForceConfig = FORCE_CONFIG
+  ) {
     this.nodes = Array.isArray(nodes) ? nodes : [];
     this.edges = Array.isArray(edges) ? edges : [];
-
     this.config = config;
     this.velocities = new Map();
     this.alpha = 1.0;
 
-    // Initialize velocities safely
     this.nodes.forEach((node) => {
       this.velocities.set(node.id, [0, 0, 0]);
     });
@@ -52,7 +53,7 @@ export class ForceSimulation {
     this.applyCenterForce();
 
     this.nodes = this.nodes.map((node) => {
-      const velocity = this.velocities.get(node.id) || [0, 0, 0];
+      const velocity = this.velocities.get(node.id) || ([0, 0, 0] as [number, number, number]);
 
       const decayedVelocity: [number, number, number] = [
         velocity[0] * (1 - this.config.velocityDecay),
@@ -79,7 +80,7 @@ export class ForceSimulation {
     return this.nodes;
   }
 
-  private applyChargeForce() {
+  private applyChargeForce(): void {
     const { chargeStrength } = this.config;
 
     for (let i = 0; i < this.nodes.length; i++) {
@@ -98,25 +99,16 @@ export class ForceSimulation {
         const fy = (dy / distance) * force;
         const fz = (dz / distance) * force;
 
-        const velA = this.velocities.get(nodeA.id) || [0, 0, 0];
-        const velB = this.velocities.get(nodeB.id) || [0, 0, 0];
+        const velA = this.velocities.get(nodeA.id) || ([0, 0, 0] as [number, number, number]);
+        const velB = this.velocities.get(nodeB.id) || ([0, 0, 0] as [number, number, number]);
 
-        this.velocities.set(nodeA.id, [
-          velA[0] - fx,
-          velA[1] - fy,
-          velA[2] - fz,
-        ]);
-
-        this.velocities.set(nodeB.id, [
-          velB[0] + fx,
-          velB[1] + fy,
-          velB[2] + fz,
-        ]);
+        this.velocities.set(nodeA.id, [velA[0] - fx, velA[1] - fy, velA[2] - fz]);
+        this.velocities.set(nodeB.id, [velB[0] + fx, velB[1] + fy, velB[2] + fz]);
       }
     }
   }
 
-  private applyLinkForce() {
+  private applyLinkForce(): void {
     const { linkDistance, linkStrength } = this.config;
 
     this.edges.forEach((edge) => {
@@ -136,24 +128,15 @@ export class ForceSimulation {
       const fy = (dy / distance) * force;
       const fz = (dz / distance) * force;
 
-      const velSource = this.velocities.get(source.id) || [0, 0, 0];
-      const velTarget = this.velocities.get(target.id) || [0, 0, 0];
+      const velSource = this.velocities.get(source.id) || ([0, 0, 0] as [number, number, number]);
+      const velTarget = this.velocities.get(target.id) || ([0, 0, 0] as [number, number, number]);
 
-      this.velocities.set(source.id, [
-        velSource[0] + fx,
-        velSource[1] + fy,
-        velSource[2] + fz,
-      ]);
-
-      this.velocities.set(target.id, [
-        velTarget[0] - fx,
-        velTarget[1] - fy,
-        velTarget[2] - fz,
-      ]);
+      this.velocities.set(source.id, [velSource[0] + fx, velSource[1] + fy, velSource[2] + fz]);
+      this.velocities.set(target.id, [velTarget[0] - fx, velTarget[1] - fy, velTarget[2] - fz]);
     });
   }
 
-  private applyCenterForce() {
+  private applyCenterForce(): void {
     const { centerStrength } = this.config;
 
     if (this.nodes.length === 0) return;
@@ -173,8 +156,7 @@ export class ForceSimulation {
     cz /= this.nodes.length;
 
     this.nodes.forEach((node) => {
-      const vel = this.velocities.get(node.id) || [0, 0, 0];
-
+      const vel = this.velocities.get(node.id) || ([0, 0, 0] as [number, number, number]);
       this.velocities.set(node.id, [
         vel[0] - cx * centerStrength,
         vel[1] - cy * centerStrength,

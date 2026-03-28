@@ -66,30 +66,26 @@ export const EDGE_CONFIG = {
   selectedOpacity: 1.0,
 } as const;
 
-// ── Node type colours (used in Inspector panel only) ─────────────── //
 export const NODE_COLORS: Record<NodeType, string> = {
-  service:       '#22d3ee',   // cyan
-  library:       '#a78bfa',   // violet
-  repository:    '#f472b6',   // pink
-  database:      '#fbbf24',   // amber
-  api:           '#34d399',   // emerald
-  server:        '#60a5fa',   // blue
-  ip:            '#fb923c',   // orange
-  threat:        '#f87171',   // red
-  vulnerability: '#e879f9',   // fuchsia
+  service:       '#22d3ee',
+  library:       '#a78bfa',
+  repository:    '#f472b6',
+  database:      '#fbbf24',
+  api:           '#34d399',
+  server:        '#60a5fa',
+  ip:            '#fb923c',
+  threat:        '#f87171',
+  vulnerability: '#e879f9',
 };
 
-// ── Ecosystem colours ─────────────────────────────────────────────── //
-// Used for:  node glow colour, graph filter badges, Inspector badges
 export const ECOSYSTEM_COLORS: Record<string, string> = {
-  npm:     '#f7df1e',   // JS yellow
-  python:  '#3b82f6',   // Python blue
-  go:      '#00add8',   // Go cyan
-  rust:    '#f97316',   // Rust orange
-  unknown: '#94a3b8',   // slate
+  npm:     '#f7df1e',
+  python:  '#3b82f6',
+  go:      '#00add8',
+  rust:    '#f97316',
+  unknown: '#94a3b8',
 };
 
-// Dimmer versions for emissive so nodes glow their ecosystem colour
 export const ECOSYSTEM_EMISSIVE: Record<string, string> = {
   npm:     '#3d3600',
   python:  '#0c1a3b',

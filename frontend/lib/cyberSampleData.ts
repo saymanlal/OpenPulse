@@ -1,17 +1,31 @@
-// lib/cyberSampleData.ts
-import type { CyberNode, CyberEdge, IPNodeMetadata, ThreatNodeMetadata, VulnerabilityNodeMetadata } from '@/types/cyber';
-import { IPType, ThreatActorType, ThreatSeverity, VulnerabilitySeverity, AttackTechnique, CyberRelationType } from '@/types/cyber';
+import type {
+  CyberNode,
+  CyberEdge,
+  IPNodeMetadata,
+  ThreatNodeMetadata,
+  VulnerabilityNodeMetadata,
+} from '@/types/cyber';
+import {
+  IPType,
+  ThreatActorType,
+  ThreatSeverity,
+  VulnerabilitySeverity,
+  AttackTechnique,
+  CyberRelationType,
+} from '@/types/cyber';
 
-/**
- * Generate sample cyber intelligence graph
- */
 export function generateCyberIntelGraph(config: {
   ipCount?: number;
   threatCount?: number;
   vulnCount?: number;
   assetCount?: number;
 }): { nodes: CyberNode[]; edges: CyberEdge[] } {
-  const { ipCount = 10, threatCount = 5, vulnCount = 8, assetCount = 12 } = config;
+  const {
+    ipCount = 10,
+    threatCount = 5,
+    vulnCount = 8,
+    assetCount = 12,
+  } = config;
 
   const nodes: CyberNode[] = [];
   const edges: CyberEdge[] = [];
@@ -24,17 +38,23 @@ export function generateCyberIntelGraph(config: {
     const reputation = isMalicious ? Math.random() * 40 : 60 + Math.random() * 40;
 
     const metadata: IPNodeMetadata = {
-      ipAddress: `${192 + Math.floor(Math.random() * 64)}.${Math.floor(Math.random() * 256)}.${Math.floor(Math.random() * 256)}.${Math.floor(Math.random() * 256)}`,
+      ipAddress: `${192 + Math.floor(Math.random() * 64)}.${Math.floor(
+        Math.random() * 256
+      )}.${Math.floor(Math.random() * 256)}.${Math.floor(Math.random() * 256)}`,
       ipType: IPType.PUBLIC,
       isMalicious,
       reputation,
       geolocation: {
         country: ['US', 'CN', 'RU', 'KP', 'IR'][Math.floor(Math.random() * 5)],
-        city: ['New York', 'Beijing', 'Moscow', 'Pyongyang', 'Tehran'][Math.floor(Math.random() * 5)],
+        city: ['New York', 'Beijing', 'Moscow', 'Pyongyang', 'Tehran'][
+          Math.floor(Math.random() * 5)
+        ],
       },
       ports: isMalicious ? [22, 80, 443, 3389] : [80, 443],
       services: isMalicious ? ['SSH', 'HTTP', 'RDP'] : ['HTTP', 'HTTPS'],
-      lastSeen: new Date(Date.now() - Math.random() * 7 * 24 * 60 * 60 * 1000).toISOString(),
+      lastSeen: new Date(
+        Date.now() - Math.random() * 7 * 24 * 60 * 60 * 1000
+      ).toISOString(),
     };
 
     nodes.push({
@@ -63,26 +83,41 @@ export function generateCyberIntelGraph(config: {
   ];
 
   for (let i = 0; i < threatCount; i++) {
-    const severities = [ThreatSeverity.CRITICAL, ThreatSeverity.HIGH, ThreatSeverity.MEDIUM, ThreatSeverity.LOW];
+    const severities: ThreatSeverity[] = [
+      ThreatSeverity.CRITICAL,
+      ThreatSeverity.HIGH,
+      ThreatSeverity.MEDIUM,
+      ThreatSeverity.LOW,
+    ];
     const severity = severities[Math.floor(Math.random() * severities.length)];
+
+    const allTechniques: AttackTechnique[] = [
+      AttackTechnique.INITIAL_ACCESS,
+      AttackTechnique.EXECUTION,
+      AttackTechnique.PERSISTENCE,
+      AttackTechnique.PRIVILEGE_ESCALATION,
+      AttackTechnique.CREDENTIAL_ACCESS,
+    ];
 
     const metadata: ThreatNodeMetadata = {
       threatId: `THR-${1000 + i}`,
       threatName: threatNames[i % threatNames.length],
-      threatType: [ThreatActorType.APT, ThreatActorType.CYBERCRIME, ThreatActorType.NATION_STATE][Math.floor(Math.random() * 3)],
+      threatType: [
+        ThreatActorType.APT,
+        ThreatActorType.CYBERCRIME,
+        ThreatActorType.NATION_STATE,
+      ][Math.floor(Math.random() * 3)],
       severity,
       isActive: Math.random() > 0.3,
-      techniques: [
-        AttackTechnique.INITIAL_ACCESS,
-        AttackTechnique.EXECUTION,
-        AttackTechnique.PERSISTENCE,
-        AttackTechnique.PRIVILEGE_ESCALATION,
-        AttackTechnique.CREDENTIAL_ACCESS,
-      ].slice(0, 2 + Math.floor(Math.random() * 3)),
+      techniques: allTechniques.slice(0, 2 + Math.floor(Math.random() * 3)),
       targetedSectors: ['Financial', 'Healthcare', 'Government', 'Technology'],
       confidence: 60 + Math.random() * 40,
-      firstSeen: new Date(Date.now() - Math.random() * 365 * 24 * 60 * 60 * 1000).toISOString(),
-      lastSeen: new Date(Date.now() - Math.random() * 30 * 24 * 60 * 60 * 1000).toISOString(),
+      firstSeen: new Date(
+        Date.now() - Math.random() * 365 * 24 * 60 * 60 * 1000
+      ).toISOString(),
+      lastSeen: new Date(
+        Date.now() - Math.random() * 30 * 24 * 60 * 60 * 1000
+      ).toISOString(),
     };
 
     nodes.push({
@@ -96,9 +131,13 @@ export function generateCyberIntelGraph(config: {
       ],
       metadata,
       riskScore:
-        severity === ThreatSeverity.CRITICAL ? 0.9 :
-        severity === ThreatSeverity.HIGH ? 0.7 :
-        severity === ThreatSeverity.MEDIUM ? 0.5 : 0.3,
+        severity === ThreatSeverity.CRITICAL
+          ? 0.9
+          : severity === ThreatSeverity.HIGH
+          ? 0.7
+          : severity === ThreatSeverity.MEDIUM
+          ? 0.5
+          : 0.3,
     });
   }
 
@@ -117,9 +156,13 @@ export function generateCyberIntelGraph(config: {
   for (let i = 0; i < vulnCount; i++) {
     const cvssScore = 3 + Math.random() * 7;
     const severity =
-      cvssScore >= 9 ? VulnerabilitySeverity.CRITICAL :
-      cvssScore >= 7 ? VulnerabilitySeverity.HIGH :
-      cvssScore >= 4 ? VulnerabilitySeverity.MEDIUM : VulnerabilitySeverity.LOW;
+      cvssScore >= 9
+        ? VulnerabilitySeverity.CRITICAL
+        : cvssScore >= 7
+        ? VulnerabilitySeverity.HIGH
+        : cvssScore >= 4
+        ? VulnerabilitySeverity.MEDIUM
+        : VulnerabilitySeverity.LOW;
 
     const metadata: VulnerabilityNodeMetadata = {
       cveId: `CVE-2024-${10000 + i}`,
@@ -128,7 +171,9 @@ export function generateCyberIntelGraph(config: {
       cvssScore,
       cvssVector: 'CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H',
       description: cweTypes[i % cweTypes.length],
-      published: new Date(Date.now() - Math.random() * 180 * 24 * 60 * 60 * 1000).toISOString(),
+      published: new Date(
+        Date.now() - Math.random() * 180 * 24 * 60 * 60 * 1000
+      ).toISOString(),
       exploitAvailable: Math.random() > 0.6,
       exploitedInWild: Math.random() > 0.8,
       patchAvailable: Math.random() > 0.4,
@@ -148,9 +193,14 @@ export function generateCyberIntelGraph(config: {
     });
   }
 
-  // Generate Assets (services, libraries, etc.)
-  const assetTypes: ('service' | 'library' | 'database' | 'api' | 'server')[] =
-    ['service', 'library', 'database', 'api', 'server'];
+  // Generate Assets
+  const assetTypes: Array<'service' | 'library' | 'database' | 'api' | 'server'> = [
+    'service',
+    'library',
+    'database',
+    'api',
+    'server',
+  ];
 
   for (let i = 0; i < assetCount; i++) {
     const type = assetTypes[Math.floor(Math.random() * assetTypes.length)];
@@ -171,17 +221,19 @@ export function generateCyberIntelGraph(config: {
   }
 
   // Generate Edges
-  const threats = nodes.filter(n => n.type === 'threat');
-  const assets = nodes.filter(n => ['service','library','database','api','server'].includes(n.type));
-  const vulns = nodes.filter(n => n.type === 'vulnerability');
-  const ips = nodes.filter(n => n.type === 'ip');
+  const threats = nodes.filter((n) => n.type === 'threat');
+  const assets = nodes.filter((n) =>
+    ['service', 'library', 'database', 'api', 'server'].includes(n.type)
+  );
+  const vulns = nodes.filter((n) => n.type === 'vulnerability');
+  const ips = nodes.filter((n) => n.type === 'ip');
 
   // Threats target assets
-  threats.forEach(threat => {
+  threats.forEach((threat) => {
     const targetCount = 1 + Math.floor(Math.random() * 3);
-    const targets = assets.sort(() => Math.random() - 0.5).slice(0, targetCount);
+    const targets = [...assets].sort(() => Math.random() - 0.5).slice(0, targetCount);
 
-    targets.forEach(target => {
+    targets.forEach((target) => {
       edges.push({
         id: `edge-${edgeId++}`,
         source: threat.id,
@@ -194,11 +246,11 @@ export function generateCyberIntelGraph(config: {
   });
 
   // Threats exploit vulnerabilities
-  threats.forEach(threat => {
-    const vulnCount = 1 + Math.floor(Math.random() * 2);
-    const targetVulns = vulns.sort(() => Math.random() - 0.5).slice(0, vulnCount);
+  threats.forEach((threat) => {
+    const count = 1 + Math.floor(Math.random() * 2);
+    const targetVulns = [...vulns].sort(() => Math.random() - 0.5).slice(0, count);
 
-    targetVulns.forEach(vuln => {
+    targetVulns.forEach((vuln) => {
       edges.push({
         id: `edge-${edgeId++}`,
         source: threat.id,
@@ -211,11 +263,11 @@ export function generateCyberIntelGraph(config: {
   });
 
   // Vulnerabilities affect assets
-  vulns.forEach(vuln => {
+  vulns.forEach((vuln) => {
     const affectCount = 1 + Math.floor(Math.random() * 3);
-    const affected = assets.sort(() => Math.random() - 0.5).slice(0, affectCount);
+    const affected = [...assets].sort(() => Math.random() - 0.5).slice(0, affectCount);
 
-    affected.forEach(asset => {
+    affected.forEach((asset) => {
       edges.push({
         id: `edge-${edgeId++}`,
         source: vuln.id,
@@ -228,11 +280,11 @@ export function generateCyberIntelGraph(config: {
   });
 
   // IPs communicate with assets
-  ips.forEach(ip => {
+  ips.forEach((ip) => {
     const commCount = 1 + Math.floor(Math.random() * 2);
-    const targets = assets.sort(() => Math.random() - 0.5).slice(0, commCount);
+    const targets = [...assets].sort(() => Math.random() - 0.5).slice(0, commCount);
 
-    targets.forEach(target => {
+    targets.forEach((target) => {
       edges.push({
         id: `edge-${edgeId++}`,
         source: ip.id,
@@ -244,10 +296,12 @@ export function generateCyberIntelGraph(config: {
     });
   });
 
-  // Some malicious IPs are used by threats
-  const maliciousIPs = ips.filter(ip => (ip.metadata as IPNodeMetadata).isMalicious);
+  // Malicious IPs used by threats
+  const maliciousIPs = ips.filter(
+    (ip) => (ip.metadata as IPNodeMetadata).isMalicious
+  );
 
-  maliciousIPs.forEach(ip => {
+  maliciousIPs.forEach((ip) => {
     if (threats.length > 0 && Math.random() > 0.5) {
       const threat = threats[Math.floor(Math.random() * threats.length)];
       edges.push({
