@@ -7,6 +7,9 @@ import type { GraphData } from '@/types/graph';
 
 const LOADING_STEPS = ['Fetching repository...', 'Building graph...', 'Rendering...'] as const;
 
+// Get API URL from environment or use production default
+const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'https://openpulse-43sj.onrender.com';
+
 export function useRepositoryAnalysis() {
   const [loading, setLoading] = useState(false);
   const [status, setStatus] = useState<string>('Ready');
@@ -66,7 +69,7 @@ export function useRepositoryAnalysis() {
   };
 }
 
-// New hooks for Header.tsx compatibility
+// Load graph from API database
 export function useLoadGraphFromApi() {
   const [loading, setLoading] = useState(false);
   const setGraphData = useGraphStore((state) => state.setGraphData);
@@ -74,7 +77,7 @@ export function useLoadGraphFromApi() {
   const loadGraph = useCallback(async () => {
     setLoading(true);
     try {
-      const response = await fetch('http://localhost:8001/api/graph/data');
+      const response = await fetch(`${API_BASE}/api/graph/data`);
       if (!response.ok) throw new Error('Failed to load graph');
       const data = await response.json();
       setGraphData(data);
@@ -89,6 +92,7 @@ export function useLoadGraphFromApi() {
   return { loadGraph, loading };
 }
 
+// Save graph to API database
 export function useSaveGraphToApi() {
   const [loading, setLoading] = useState(false);
   const nodes = useGraphStore((state) => state.nodes);
@@ -97,7 +101,7 @@ export function useSaveGraphToApi() {
   const saveGraph = useCallback(async () => {
     setLoading(true);
     try {
-      const response = await fetch('http://localhost:8001/api/graph/data', {
+      const response = await fetch(`${API_BASE}/api/graph/data`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ nodes, edges }),
@@ -115,6 +119,7 @@ export function useSaveGraphToApi() {
   return { saveGraph, loading };
 }
 
+// API Connection Health Check
 export function useApiConnection() {
   const [connected, setConnected] = useState<boolean>(false);
   const [checking, setChecking] = useState<boolean>(true);
@@ -122,17 +127,29 @@ export function useApiConnection() {
   useEffect(() => {
     const checkConnection = async () => {
       try {
-        const response = await fetch('http://localhost:8001/health');
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 5000);
+
+        const response = await fetch(`${API_BASE}/health`, {
+          signal: controller.signal,
+          cache: 'no-store',
+        });
+        
+        clearTimeout(timeoutId);
         setConnected(response.ok);
-      } catch {
+      } catch (error) {
+        console.warn('API connection check failed:', error);
         setConnected(false);
       } finally {
         setChecking(false);
       }
     };
 
+    // Initial check
     checkConnection();
-    const interval = setInterval(checkConnection, 30000); // Check every 30s
+    
+    // Check every 30 seconds
+    const interval = setInterval(checkConnection, 30000);
 
     return () => clearInterval(interval);
   }, []);

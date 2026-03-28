@@ -49,7 +49,7 @@ function parseRepoInput(raw: string): { owner: string; repo: string } | null {
   return null;
 }
 
-const API_BASE = 'https://openpulse-43sj.onrender.com';
+const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'https://openpulse-43sj.onrender.com';
 
 async function callAnalyze(
   owner: string,
