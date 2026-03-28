@@ -18,7 +18,10 @@ import {
   ChevronRight,
   Layers,
   FileText,
-  Power
+  Power,
+  AlertTriangle,
+  Shield,
+  X
 } from 'lucide-react';
 
 // ── Types ──────────────────────────────────────────────────────────── //
@@ -39,6 +42,104 @@ interface AnalyzeResult {
   edges:       GraphData['edges'];
   metadata:    Record<string, unknown>;
 }
+
+interface VulnerabilityAlert {
+  id: string;
+  nodeId: string;
+  nodeName: string;
+  severity: 'critical' | 'high' | 'medium';
+  message: string;
+  timestamp: number;
+}
+
+// ── Demo Data ──────────────────────────────────────────────────────── //
+
+const DEMO_DATA: AnalyzeResult = {
+  status: 'success',
+  ecosystems: [
+    {
+      ecosystem: 'npm',
+      manifestPath: 'package.json',
+      projectName: 'demo-app',
+      totalDeps: 42,
+      directDeps: 15,
+      devDeps: 8,
+    },
+    {
+      ecosystem: 'pip',
+      manifestPath: 'requirements.txt',
+      projectName: 'demo-backend',
+      totalDeps: 28,
+      directDeps: 12,
+      devDeps: 5,
+    },
+  ],
+  nodes: [
+    { id: 'root-1', label: 'demo-app', type: 'root', riskScore: 0.3, metadata: { isRoot: true, ecosystem: 'npm', manifestPath: 'package.json' } },
+    { id: 'react', label: 'react', type: 'library', riskScore: 0.15, metadata: { ecosystem: 'npm', version: '18.2.0', manifestPath: 'package.json' } },
+    { id: 'lodash', label: 'lodash', type: 'library', riskScore: 0.85, metadata: { ecosystem: 'npm', version: '4.17.20', manifestPath: 'package.json', vulnerabilities: ['CVE-2021-23337'] } },
+    { id: 'axios', label: 'axios', type: 'library', riskScore: 0.25, metadata: { ecosystem: 'npm', version: '1.4.0', manifestPath: 'package.json' } },
+    { id: 'express', label: 'express', type: 'library', riskScore: 0.72, metadata: { ecosystem: 'npm', version: '4.17.1', manifestPath: 'package.json', vulnerabilities: ['CVE-2022-24999'] } },
+    { id: 'webpack', label: 'webpack', type: 'library', riskScore: 0.35, metadata: { ecosystem: 'npm', version: '5.75.0', manifestPath: 'package.json', isDev: true } },
+    { id: 'root-2', label: 'demo-backend', type: 'root', riskScore: 0.4, metadata: { isRoot: true, ecosystem: 'pip', manifestPath: 'requirements.txt' } },
+    { id: 'django', label: 'django', type: 'library', riskScore: 0.2, metadata: { ecosystem: 'pip', version: '4.2.0', manifestPath: 'requirements.txt' } },
+    { id: 'requests', label: 'requests', type: 'library', riskScore: 0.18, metadata: { ecosystem: 'pip', version: '2.31.0', manifestPath: 'requirements.txt' } },
+    { id: 'pillow', label: 'pillow', type: 'library', riskScore: 0.91, metadata: { ecosystem: 'pip', version: '9.0.0', manifestPath: 'requirements.txt', vulnerabilities: ['CVE-2023-44271', 'CVE-2023-50447'] } },
+    { id: 'numpy', label: 'numpy', type: 'library', riskScore: 0.12, metadata: { ecosystem: 'pip', version: '1.24.0', manifestPath: 'requirements.txt' } },
+    { id: 'pytest', label: 'pytest', type: 'library', riskScore: 0.22, metadata: { ecosystem: 'pip', version: '7.4.0', manifestPath: 'requirements.txt', isDev: true } },
+  ],
+  edges: [
+    { id: 'e1', source: 'root-1', target: 'react' },
+    { id: 'e2', source: 'root-1', target: 'lodash' },
+    { id: 'e3', source: 'root-1', target: 'axios' },
+    { id: 'e4', source: 'root-1', target: 'express' },
+    { id: 'e5', source: 'root-1', target: 'webpack' },
+    { id: 'e6', source: 'react', target: 'lodash' },
+    { id: 'e7', source: 'express', target: 'lodash' },
+    { id: 'e8', source: 'root-2', target: 'django' },
+    { id: 'e9', source: 'root-2', target: 'requests' },
+    { id: 'e10', source: 'root-2', target: 'pillow' },
+    { id: 'e11', source: 'root-2', target: 'numpy' },
+    { id: 'e12', source: 'root-2', target: 'pytest' },
+    { id: 'e13', source: 'django', target: 'pillow' },
+  ],
+  metadata: {
+    totalNodes: 12,
+    totalEdges: 13,
+    manifestGroups: {
+      npm: ['package.json'],
+      pip: ['requirements.txt'],
+    },
+  },
+};
+
+// Vulnerability alerts to show after 6 seconds
+const VULNERABILITY_ALERTS: VulnerabilityAlert[] = [
+  {
+    id: 'vuln-1',
+    nodeId: 'lodash',
+    nodeName: 'lodash',
+    severity: 'high',
+    message: 'Prototype pollution vulnerability detected (CVE-2021-23337)',
+    timestamp: Date.now(),
+  },
+  {
+    id: 'vuln-2',
+    nodeId: 'pillow',
+    nodeName: 'pillow',
+    severity: 'critical',
+    message: 'Multiple critical vulnerabilities found (CVE-2023-44271, CVE-2023-50447)',
+    timestamp: Date.now(),
+  },
+  {
+    id: 'vuln-3',
+    nodeId: 'express',
+    nodeName: 'express',
+    severity: 'high',
+    message: 'Security vulnerability in qs dependency (CVE-2022-24999)',
+    timestamp: Date.now(),
+  },
+];
 
 // ── Helpers ────────────────────────────────────────────────────────── //
 
@@ -153,10 +254,109 @@ function ManifestBadge({
   );
 }
 
+// ── Vulnerability Alert Component ──────────────────────────────────── //
+
+function VulnerabilityAlertBanner({ 
+  alert, 
+  onDismiss, 
+  onInspect 
+}: { 
+  alert: VulnerabilityAlert; 
+  onDismiss: () => void; 
+  onInspect: () => void;
+}) {
+  const severityConfig = {
+    critical: { color: '#ef4444', bg: 'rgba(239, 68, 68, 0.15)', border: 'rgba(239, 68, 68, 0.5)', label: 'CRITICAL' },
+    high: { color: '#f97316', bg: 'rgba(249, 115, 22, 0.15)', border: 'rgba(249, 115, 22, 0.5)', label: 'HIGH' },
+    medium: { color: '#eab308', bg: 'rgba(234, 179, 8, 0.15)', border: 'rgba(234, 179, 8, 0.5)', label: 'MEDIUM' },
+  };
+
+  const config = severityConfig[alert.severity];
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: -20, scale: 0.95 }}
+      animate={{ opacity: 1, y: 0, scale: 1 }}
+      exit={{ opacity: 0, y: -20, scale: 0.95 }}
+      className="rounded-xl border p-3 backdrop-blur-sm relative overflow-hidden"
+      style={{
+        backgroundColor: config.bg,
+        borderColor: config.border,
+      }}
+    >
+      <motion.div
+        className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent"
+        animate={{ x: ['-100%', '100%'] }}
+        transition={{ duration: 3, repeat: Infinity, ease: "linear" }}
+      />
+      
+      <div className="flex items-start gap-3 relative z-10">
+        <motion.div
+          animate={{ 
+            scale: [1, 1.2, 1],
+            rotate: [0, 5, -5, 0],
+          }}
+          transition={{ duration: 2, repeat: Infinity }}
+        >
+          <AlertTriangle className="w-5 h-5 shrink-0" style={{ color: config.color }} />
+        </motion.div>
+        
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2 mb-1">
+            <span 
+              className="text-[10px] font-bold tracking-wider px-2 py-0.5 rounded-full"
+              style={{ 
+                backgroundColor: config.color + '33', 
+                color: config.color,
+                border: `1px solid ${config.color}66`
+              }}
+            >
+              {config.label}
+            </span>
+            <span className="text-xs font-mono font-semibold text-white">
+              {alert.nodeName}
+            </span>
+          </div>
+          <p className="text-xs text-white/80 leading-relaxed">
+            {alert.message}
+          </p>
+        </div>
+
+        <div className="flex items-center gap-1 shrink-0">
+          <motion.button
+            onClick={onInspect}
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+            className="px-3 py-1.5 rounded-lg text-xs font-medium transition-all flex items-center gap-1.5"
+            style={{
+              backgroundColor: config.color + '22',
+              color: config.color,
+              border: `1px solid ${config.color}44`,
+            }}
+          >
+            <Shield className="w-3 h-3" />
+            Inspect
+          </motion.button>
+          
+          <motion.button
+            onClick={onDismiss}
+            whileHover={{ scale: 1.1 }}
+            whileTap={{ scale: 0.9 }}
+            className="p-1.5 rounded-lg hover:bg-white/10 transition-all"
+          >
+            <X className="w-4 h-4 text-white/60" />
+          </motion.button>
+        </div>
+      </div>
+    </motion.div>
+  );
+}
+
 // ── Main Header with animations ───────────────────────────────────── //
 
 export default function Header() {
   const setGraphData  = useGraphStore((s) => s.setGraphData);
+  const setSelectedNode = useGraphStore((s) => s.setSelectedNode);
   const { connected, setForceDisconnect } = useApiConnection();
 
   const [input,       setInput]       = useState('');
@@ -171,6 +371,10 @@ export default function Header() {
   const [activeEco,   setActiveEco]   = useState<string>('all');
   const [manifestGroups, setManifestGroups] = useState<Record<string, string[]>>({});
   const [activeManifest, setActiveManifest] = useState<string>('all');
+
+  // Vulnerability alerts state
+  const [vulnerabilityAlerts, setVulnerabilityAlerts] = useState<VulnerabilityAlert[]>([]);
+  const [showVulnAlerts, setShowVulnAlerts] = useState(false);
 
   const flash = useCallback((msg: string, kind: 'ok' | 'err') => {
     if (kind === 'ok') { setSuccessMsg(msg); setError(null); }
@@ -223,7 +427,41 @@ export default function Header() {
     [setGraphData],
   );
 
+  // Load demo data when in demo mode
+  const loadDemoData = useCallback(() => {
+    setLoading(true);
+    setError(null);
+    setSuccessMsg(null);
+    setVulnerabilityAlerts([]);
+    setShowVulnAlerts(false);
+
+    // Simulate loading delay
+    setTimeout(() => {
+      setFullResult(DEMO_DATA);
+      setEcosystems(DEMO_DATA.ecosystems ?? []);
+      const mg = (DEMO_DATA.metadata.manifestGroups ?? {}) as Record<string, string[]>;
+      setManifestGroups(mg);
+      applyFilter(DEMO_DATA, 'all', 'all');
+      setLoading(false);
+
+      const ecoNames = [...new Set(DEMO_DATA.ecosystems.map((e) => e.ecosystem))].join(', ');
+      flash(`🎮 Demo: ${DEMO_DATA.metadata.totalNodes} packages · ${ecoNames} · ${DEMO_DATA.metadata.totalEdges} deps`, 'ok');
+
+      // Schedule vulnerability alerts after 6 seconds
+      setTimeout(() => {
+        setVulnerabilityAlerts(VULNERABILITY_ALERTS);
+        setShowVulnAlerts(true);
+      }, 6000);
+    }, 1000);
+  }, [flash, applyFilter]);
+
   const handleAnalyze = useCallback(async () => {
+    // If in demo mode, load demo data instead
+    if (demoMode) {
+      loadDemoData();
+      return;
+    }
+
     const parsed = parseRepoInput(input);
     if (!parsed) {
       flash('Use format: owner/repo or a full GitHub URL', 'err');
@@ -237,6 +475,8 @@ export default function Header() {
     setManifestGroups({});
     setActiveEco('all');
     setActiveManifest('all');
+    setVulnerabilityAlerts([]);
+    setShowVulnAlerts(false);
 
     try {
       const result = await callAnalyze(parsed.owner, parsed.repo, null);
@@ -253,7 +493,7 @@ export default function Header() {
     } finally {
       setLoading(false);
     }
-  }, [input, flash, applyFilter]);
+  }, [input, flash, applyFilter, demoMode, loadDemoData]);
 
   const handleEcoChange = useCallback((eco: string) => {
     setActiveEco(eco);
@@ -272,13 +512,32 @@ export default function Header() {
     if (setForceDisconnect) {
       setForceDisconnect(newDemoMode);
     }
+    
+    // Clear existing data when toggling
+    setVulnerabilityAlerts([]);
+    setShowVulnAlerts(false);
+    setFullResult(null);
+    setEcosystems([]);
+    setManifestGroups({});
+    setActiveEco('all');
+    setActiveManifest('all');
+    
     flash(
       newDemoMode 
-        ? '🎮 Demo Mode: API disconnected' 
+        ? '🎮 Demo Mode: API disconnected - Click Analyze to load demo data' 
         : '🔌 Live Mode: API reconnected',
       'ok'
     );
   }, [demoMode, setForceDisconnect, flash]);
+
+  const handleDismissAlert = useCallback((alertId: string) => {
+    setVulnerabilityAlerts(prev => prev.filter(a => a.id !== alertId));
+  }, []);
+
+  const handleInspectVulnerability = useCallback((nodeId: string) => {
+    setSelectedNode(nodeId);
+    // You might want to also switch to the node tab in Inspector here
+  }, [setSelectedNode]);
 
   const uniqueEcos = [...new Set(ecosystems.map((e) => e.ecosystem))];
   const currentManifests = activeEco !== 'all' && manifestGroups[activeEco]?.length > 1
@@ -365,8 +624,9 @@ export default function Header() {
               onKeyDown={(e) => e.key === 'Enter' && handleAnalyze()}
               onFocus={() => setIsFocused(true)}
               onBlur={() => setIsFocused(false)}
-              placeholder="owner/repo  or  https://github.com/owner/repo"
+              placeholder={demoMode ? "Click Analyze to load demo data..." : "owner/repo  or  https://github.com/owner/repo"}
               className="w-full bg-black/60 border border-white/20 rounded-xl px-4 py-2.5 text-sm text-white placeholder-zinc-500 focus:outline-none focus:border-white/40 transition-all relative z-10"
+              disabled={demoMode}
             />
             <Search className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500 z-10" />
           </motion.div>
@@ -374,10 +634,10 @@ export default function Header() {
           <motion.button
             type="button"
             onClick={handleAnalyze}
-            disabled={loading || !connected}
+            disabled={loading || (!connected && !demoMode)}
             whileHover={{ scale: 1.02 }}
             whileTap={{ scale: 0.98 }}
-            animate={!loading && connected ? { 
+            animate={!loading && (connected || demoMode) ? { 
               boxShadow: ['0 0 0px rgba(255,255,255,0)', '0 0 12px rgba(255,255,255,0.3)', '0 0 0px rgba(255,255,255,0)']
             } : {}}
             transition={{ duration: 1.5, repeat: Infinity }}
@@ -448,21 +708,42 @@ export default function Header() {
         {/* API status with enhanced indicator */}
         <motion.div 
           className="shrink-0 flex items-center gap-1.5 text-xs"
-          animate={connected ? { 
+          animate={connected && !demoMode ? { 
             boxShadow: ['0 0 0px rgba(34,197,94,0)', '0 0 8px rgba(34,197,94,0.5)', '0 0 0px rgba(34,197,94,0)']
           } : {}}
           transition={{ duration: 1.5, repeat: Infinity }}
         >
           <motion.span 
-            className={`w-2 h-2 rounded-full ${connected ? 'bg-emerald-400' : 'bg-rose-500'}`}
-            animate={connected ? { scale: [1, 1.3, 1] } : {}}
+            className={`w-2 h-2 rounded-full ${connected && !demoMode ? 'bg-emerald-400' : 'bg-rose-500'}`}
+            animate={connected && !demoMode ? { scale: [1, 1.3, 1] } : {}}
             transition={{ duration: 1, repeat: Infinity }}
           />
-          <span className={`hidden sm:inline ${connected ? 'text-emerald-400' : 'text-rose-400'}`}>
-            {connected ? 'API Live' : 'Offline'}
+          <span className={`hidden sm:inline ${connected && !demoMode ? 'text-emerald-400' : 'text-rose-400'}`}>
+            {connected && !demoMode ? 'API Live' : 'Offline'}
           </span>
         </motion.div>
       </div>
+
+      {/* ── Vulnerability Alerts ──────────────────────────────────── */}
+      <AnimatePresence>
+        {showVulnAlerts && vulnerabilityAlerts.length > 0 && (
+          <motion.div
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: 'auto' }}
+            exit={{ opacity: 0, height: 0 }}
+            className="px-6 pb-3 space-y-2"
+          >
+            {vulnerabilityAlerts.map((alert) => (
+              <VulnerabilityAlertBanner
+                key={alert.id}
+                alert={alert}
+                onDismiss={() => handleDismissAlert(alert.id)}
+                onInspect={() => handleInspectVulnerability(alert.nodeId)}
+              />
+            ))}
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* ── Feedback with animation ───────────────────────────────── */}
       <AnimatePresence>
