@@ -81,71 +81,45 @@ export function generateRealisticDependencies(): DependencyAnalysis {
     version: '2.3.1',
     description: 'Enterprise analytics dashboard',
     dependencies: {
-      // Core frameworks
       react: '^18.2.0',
       'react-dom': '^18.2.0',
       next: '^14.0.4',
-      
-      // State management
       zustand: '^4.4.7',
       '@tanstack/react-query': '^5.8.0',
-      
-      // UI Libraries
       '@radix-ui/react-dialog': '^1.0.5',
       '@radix-ui/react-dropdown-menu': '^2.0.6',
       'lucide-react': '^0.294.0',
-      
-      // Data visualization
       recharts: '^2.10.0',
-      'd3': '^7.8.5',
-      
-      // Utilities
+      d3: '^7.8.5',
       axios: '^1.6.2',
       lodash: '^4.17.21',
       dayjs: '^1.11.10',
       clsx: '^2.0.0',
       'tailwind-merge': '^2.1.0',
-      
-      // Forms
       'react-hook-form': '^7.48.2',
       zod: '^3.22.4',
-      
-      // Authentication
       'next-auth': '^4.24.5',
-      
-      // Database
       '@prisma/client': '^5.7.0',
     },
     devDependencies: {
-      // TypeScript
       typescript: '^5.3.3',
       '@types/react': '^18.2.45',
       '@types/react-dom': '^18.2.18',
       '@types/node': '^20.10.4',
       '@types/lodash': '^4.14.202',
       '@types/d3': '^7.4.3',
-      
-      // Linting & Formatting
       eslint: '^8.55.0',
       'eslint-config-next': '^14.0.4',
       prettier: '^3.1.1',
       '@typescript-eslint/eslint-plugin': '^6.14.0',
       '@typescript-eslint/parser': '^6.14.0',
-      
-      // Styling
       tailwindcss: '^3.3.6',
       autoprefixer: '^10.4.16',
       postcss: '^8.4.32',
-      
-      // Build tools
       '@next/bundle-analyzer': '^14.0.4',
-      
-      // Testing
       '@testing-library/react': '^14.1.2',
       '@testing-library/jest-dom': '^6.1.5',
       vitest: '^1.0.4',
-      
-      // Database tools
       prisma: '^5.7.0',
     },
     repository: {
@@ -156,10 +130,12 @@ export function generateRealisticDependencies(): DependencyAnalysis {
   };
 
   const analyzer = new DependencyAnalyzer();
-  return analyzer.parsePackageJson(packageJson, {
+  const analysis = analyzer.parsePackageJson(packageJson, {
     includeDevDependencies: true,
     maxDepth: 2,
   });
+  if (!analysis) throw new Error('Failed to generate DependencyAnalysis');
+  return analysis;
 }
 
 /**
@@ -226,7 +202,9 @@ pydantic-settings==2.1.0
 `;
 
   const analyzer = new DependencyAnalyzer();
-  return analyzer.parseRequirementsTxt(requirements, 'django-api-server');
+  const analysis = analyzer.parseRequirementsTxt(requirements, 'django-api-server');
+  if (!analysis) throw new Error('Failed to generate Python DependencyAnalysis');
+  return analysis;
 }
 
 /**
@@ -238,32 +216,21 @@ export function generateMicroservicesDependencies(): DependencyAnalysis {
     version: '1.0.0',
     description: 'Microservices orchestration platform',
     dependencies: {
-      // Communication
       '@grpc/grpc-js': '^1.9.0',
       '@grpc/proto-loader': '^0.7.10',
       amqplib: '^0.10.3',
       'socket.io': '^4.6.0',
-      
-      // Service mesh
       express: '^4.18.2',
       fastify: '^4.25.0',
       '@nestjs/core': '^10.2.0',
       '@nestjs/common': '^10.2.0',
-      
-      // Database
       mongoose: '^8.0.3',
       'ioredis': '^5.3.2',
       '@prisma/client': '^5.7.0',
-      
-      // Service discovery
       consul: '^1.1.0',
       etcd3: '^1.1.2',
-      
-      // Monitoring
       'prom-client': '^15.1.0',
-      'winston': '^3.11.0',
-      
-      // Config
+      winston: '^3.11.0',
       dotenv: '^16.3.1',
       joi: '^17.11.0',
     },
@@ -280,5 +247,7 @@ export function generateMicroservicesDependencies(): DependencyAnalysis {
   };
 
   const analyzer = new DependencyAnalyzer();
-  return analyzer.parsePackageJson(packageJson);
+  const analysis = analyzer.parsePackageJson(packageJson);
+  if (!analysis) throw new Error('Failed to generate Microservices DependencyAnalysis');
+  return analysis;
 }
