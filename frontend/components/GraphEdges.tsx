@@ -2,7 +2,7 @@
 
 import { useMemo } from 'react';
 import * as THREE from 'three';
-import { useGraphStore } from '@/stores/graphStore';
+import { useGraphStore } from '../stores/graphStore';
 
 const WHITE_COLOR = new THREE.Color('#ffffff'); // Pure white for all edges
 const DEPENDS_ON_COLOR = new THREE.Color('#34d399');  // green - outgoing (this node depends on)

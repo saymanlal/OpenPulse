@@ -2,7 +2,7 @@
 
 import { Suspense } from 'react';
 import { Canvas } from '@react-three/fiber';
-import { SCENE_CONFIG } from '@/lib/constants';
+import { SCENE_CONFIG } from '../lib/constants';
 import Scene from './Scene';
 
 function LoadingFallback() {

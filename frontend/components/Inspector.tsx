@@ -2,9 +2,9 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ECOSYSTEM_COLORS, NODE_COLORS } from '@/lib/constants';
-import { useGraphStore } from '@/stores/graphStore';
-import type { NodeType } from '@/types/graph';
+import { ECOSYSTEM_COLORS, NODE_COLORS } from '../lib/constants';
+import { useGraphStore } from '../stores/graphStore';
+import type { NodeType } from '../types/graph';
 import { 
   Package, 
   TrendingUp, 

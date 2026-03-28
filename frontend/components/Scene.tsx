@@ -2,10 +2,10 @@
 
 import { useEffect, useRef, useState } from 'react';
 import * as THREE from 'three';
-import { SCENE_CONFIG } from '@/lib/constants';
-import { evolveDemoDataset, getOrCreateDemoDataset, persistDemoDataset } from '@/lib/sampleData';
-import { useGraphStore } from '@/stores/graphStore';
-import { useLoadGraphFromApi } from '@/hooks/useApiGraph';
+import { SCENE_CONFIG } from '../lib/constants';
+import { evolveDemoDataset, getOrCreateDemoDataset, persistDemoDataset } from '../lib/sampleData';
+import { useGraphStore } from '../stores/graphStore';
+import { useLoadGraphFromApi } from '../hooks/useApiGraph';
 import CameraController from './CameraController';
 import GraphNodes from './GraphNodes';
 import GraphEdges from './GraphEdges';
