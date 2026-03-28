@@ -58,9 +58,7 @@ export class RiskScoringEngine {
 
   calculateRiskScore(nodeId: string): RiskScore {
     const node = this.nodes.find(n => n.id === nodeId);
-    if (!node) {
-      throw new Error(`Node ${nodeId} not found`);
-    }
+    if (!node) throw new Error(`Node ${nodeId} not found`);
 
     const factors = this.calculateRiskFactors(nodeId);
     const overall = this.calculateCompositeRisk(factors);
@@ -81,12 +79,11 @@ export class RiskScoringEngine {
 
   private calculateCentralityRisk(nodeId: string): number {
     const scores = this.analytics.calculateCentralityScores(nodeId);
-    const centralityScore = (
+    const centralityScore =
       scores.degree * 0.25 +
       scores.betweenness * 0.35 +
-      scores.closeness * 0.20 +
-      scores.pageRank * 0.20
-    );
+      scores.closeness * 0.2 +
+      scores.pageRank * 0.2;
     return Math.min(centralityScore, 1);
   }
 
@@ -95,8 +92,7 @@ export class RiskScoringEngine {
     const depthRisk = Math.min(metrics.depth / 10, 1);
     const totalDepsRisk = Math.min(metrics.totalDependencies / 50, 1);
     const dependentsRisk = Math.min(metrics.dependents / 20, 1);
-    
-    return (depthRisk * 0.4 + totalDepsRisk * 0.3 + dependentsRisk * 0.3);
+    return depthRisk * 0.4 + totalDepsRisk * 0.3 + dependentsRisk * 0.3;
   }
 
   private calculateMaintainerRisk(nodeId: string): number {
@@ -128,14 +124,14 @@ export class RiskScoringEngine {
       }
     }
 
-    if (metadata.maintainerCount !== undefined) {
+    if (typeof metadata.maintainerCount === 'number') {
       if (metadata.maintainerCount === 0) risk += 0.5;
       else if (metadata.maintainerCount === 1) risk += 0.3;
       else if (metadata.maintainerCount < 3) risk += 0.1;
       factorsConsidered++;
     }
 
-    if (metadata.activityScore !== undefined) {
+    if (typeof metadata.activityScore === 'number') {
       const activityRisk = 1 - Math.min(metadata.activityScore, 1);
       risk += activityRisk * 0.3;
       factorsConsidered++;
@@ -151,14 +147,14 @@ export class RiskScoringEngine {
     const metadata = node.metadata;
     let risk = 0;
 
-    if (metadata.vulnerabilityCount !== undefined) {
+    if (typeof metadata.vulnerabilityCount === 'number') {
       const count = metadata.vulnerabilityCount;
       if (count > 5) risk = 0.9;
       else if (count > 2) risk = 0.6;
       else if (count > 0) risk = 0.3;
     }
 
-    if (metadata.criticalVulnerabilities !== undefined && metadata.criticalVulnerabilities > 0) {
+    if (typeof metadata.criticalVulnerabilities === 'number' && metadata.criticalVulnerabilities > 0) {
       risk = Math.max(risk, 0.95);
     }
 
@@ -171,20 +167,18 @@ export class RiskScoringEngine {
 
   private calculateCompositeRisk(factors: RiskFactors): number {
     const { weights } = this.config;
-    const composite = (
+    const composite =
       factors.centralityRisk * weights.centrality +
       factors.dependencyRisk * weights.dependency +
       factors.maintainerRisk * weights.maintainer +
-      factors.vulnerabilityRisk * weights.vulnerability
-    );
+      factors.vulnerabilityRisk * weights.vulnerability;
     return Math.min(composite, 1);
   }
 
   private calculateConfidence(node: GraphNode): number {
     let confidence = 0.5;
     const metadata = node.metadata || {};
-    const metadataFields = Object.keys(metadata).length;
-    confidence += Math.min(metadataFields / 10, 0.3);
+    confidence += Math.min(Object.keys(metadata).length / 10, 0.3);
 
     if (metadata.lastUpdated) {
       const lastUpdated = this.safeDate(metadata.lastUpdated);
@@ -201,26 +195,14 @@ export class RiskScoringEngine {
   private generateRecommendations(overall: number, factors: RiskFactors): string[] {
     const recommendations: string[] = [];
 
-    if (overall > this.config.thresholds.high) {
-      recommendations.push('🔴 High Risk: Immediate review recommended');
-    } else if (overall > this.config.thresholds.medium) {
-      recommendations.push('🟡 Medium Risk: Schedule review');
-    } else {
-      recommendations.push('🟢 Low Risk: Monitor periodically');
-    }
+    if (overall > this.config.thresholds.high) recommendations.push('🔴 High Risk: Immediate review recommended');
+    else if (overall > this.config.thresholds.medium) recommendations.push('🟡 Medium Risk: Schedule review');
+    else recommendations.push('🟢 Low Risk: Monitor periodically');
 
-    if (factors.centralityRisk > 0.7) {
-      recommendations.push('Critical node: Consider redundancy or backup');
-    }
-    if (factors.dependencyRisk > 0.7) {
-      recommendations.push('Deep dependency tree: Review and minimize dependencies');
-    }
-    if (factors.maintainerRisk > 0.7) {
-      recommendations.push('Maintenance concerns: Check for alternatives or plan migration');
-    }
-    if (factors.vulnerabilityRisk > 0.5) {
-      recommendations.push('Security vulnerabilities detected: Update or patch immediately');
-    }
+    if (factors.centralityRisk > 0.7) recommendations.push('Critical node: Consider redundancy or backup');
+    if (factors.dependencyRisk > 0.7) recommendations.push('Deep dependency tree: Review and minimize dependencies');
+    if (factors.maintainerRisk > 0.7) recommendations.push('Maintenance concerns: Check for alternatives or plan migration');
+    if (factors.vulnerabilityRisk > 0.5) recommendations.push('Security vulnerabilities detected: Update or patch immediately');
 
     return recommendations;
   }
@@ -241,19 +223,13 @@ export class RiskScoringEngine {
 
   calculateAllRiskScores(): Map<string, RiskScore> {
     const scores = new Map<string, RiskScore>();
-    this.nodes.forEach(node => {
-      scores.set(node.id, this.calculateRiskScore(node.id));
-    });
+    this.nodes.forEach(node => scores.set(node.id, this.calculateRiskScore(node.id)));
     return scores;
   }
 
-  getHighestRiskNodes(limit: number = 10): Array<{node: GraphNode; riskScore: RiskScore}> {
-    const results = this.nodes.map(node => ({
-      node,
-      riskScore: this.calculateRiskScore(node.id),
-    }));
-
-    return results
+  getHighestRiskNodes(limit: number = 10): Array<{ node: GraphNode; riskScore: RiskScore }> {
+    return this.nodes
+      .map(node => ({ node, riskScore: this.calculateRiskScore(node.id) }))
       .sort((a, b) => b.riskScore.overall - a.riskScore.overall)
       .slice(0, limit);
   }
