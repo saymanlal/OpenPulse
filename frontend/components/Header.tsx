@@ -1,24 +1,20 @@
 'use client';
 
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useGraphStore } from '@/stores/graphStore';
 import { useApiConnection } from '@/hooks/useApiGraph';
 import { ECOSYSTEM_COLORS } from '@/lib/constants';
 import type { GraphData } from '@/types/graph';
-import { 
-  Search, 
-  Zap, 
-  Activity, 
-  Globe, 
-  Package, 
+import {
+  Search,
+  Zap,
+  Activity,
+  Package,
   GitBranch,
-  Cpu,
   Sparkles,
   ChevronRight,
   Layers,
-  FileText,
-  Power
 } from 'lucide-react';
 
 // ── Types ──────────────────────────────────────────────────────────── //
@@ -40,6 +36,11 @@ interface AnalyzeResult {
   metadata:    Record<string, unknown>;
 }
 
+// ── NEW: prop type so Layout.tsx can receive owner/repo ───────────── //
+interface HeaderProps {
+  onAnalyzeSuccess?: (owner: string, repo: string) => void;
+}
+
 // ── Helpers ────────────────────────────────────────────────────────── //
 
 function parseRepoInput(raw: string): { owner: string; repo: string } | null {
@@ -51,7 +52,7 @@ function parseRepoInput(raw: string): { owner: string; repo: string } | null {
   return null;
 }
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'https://openpulse-43sj.onrender.com';
+const API_BASE = process.env.NEXT_PUBLIC_API_URL || ' http://127.0.0.1:8001';
 
 async function callAnalyze(
   owner: string,
@@ -70,7 +71,7 @@ async function callAnalyze(
   return res.json();
 }
 
-// ── Eco badge with glow effect ────────────────────────────────────────────── //
+// ── Eco badge ─────────────────────────────────────────────────────── //
 
 function EcoBadge({
   eco, count, active, onClick,
@@ -82,7 +83,7 @@ function EcoBadge({
       onClick={onClick}
       whileHover={{ scale: 1.05, y: -1 }}
       whileTap={{ scale: 0.95 }}
-      animate={active ? { 
+      animate={active ? {
         boxShadow: [`0 0 0px ${color}`, `0 0 12px ${color}`, `0 0 0px ${color}`],
       } : {}}
       transition={{ duration: 1.5, repeat: active ? Infinity : 0 }}
@@ -97,10 +98,10 @@ function EcoBadge({
         <motion.div
           className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent"
           animate={{ x: ['-100%', '100%'] }}
-          transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
+          transition={{ duration: 2, repeat: Infinity, ease: 'linear' }}
         />
       )}
-      <motion.span 
+      <motion.span
         className="w-2 h-2 rounded-full"
         style={{ backgroundColor: active ? color : '#475569' }}
         animate={active ? { scale: [1, 1.3, 1] } : {}}
@@ -112,14 +113,14 @@ function EcoBadge({
   );
 }
 
-// ── Manifest badge with enhanced styling ───────────────────────────────── //
+// ── Manifest badge ────────────────────────────────────────────────── //
 
 function ManifestBadge({
   path, active, color, onClick,
 }: { path: string; active: boolean; color: string; onClick: () => void }) {
-  const parts  = path.split('/');
-  const file   = parts.pop()!;
-  const dir    = parts.length ? parts.join('/') + '/' : '';
+  const parts = path.split('/');
+  const file  = parts.pop()!;
+  const dir   = parts.length ? parts.join('/') + '/' : '';
 
   return (
     <motion.button
@@ -127,9 +128,9 @@ function ManifestBadge({
       onClick={onClick}
       whileHover={{ scale: 1.02, y: -1 }}
       whileTap={{ scale: 0.98 }}
-      animate={active ? { 
+      animate={active ? {
         borderColor: [color + '80', color, color + '80'],
-        boxShadow: [`0 0 0px ${color}`, `0 0 8px ${color}`, `0 0 0px ${color}`],
+        boxShadow:   [`0 0 0px ${color}`, `0 0 8px ${color}`, `0 0 0px ${color}`],
       } : {}}
       transition={{ duration: 1, repeat: active ? Infinity : 0 }}
       className="flex items-center gap-1 rounded-full px-3 py-1 text-xs font-mono transition-all border relative"
@@ -153,30 +154,33 @@ function ManifestBadge({
   );
 }
 
-// ── Main Header with animations ───────────────────────────────────── //
+// ── Main Header ───────────────────────────────────────────────────── //
 
-export default function Header() {
+export default function Header({ onAnalyzeSuccess }: HeaderProps) {
   const setGraphData  = useGraphStore((s) => s.setGraphData);
-  const { connected, setForceDisconnect } = useApiConnection();
+  const { connected } = useApiConnection();
 
-  const [input,       setInput]       = useState('');
-  const [loading,     setLoading]     = useState(false);
-  const [error,       setError]       = useState<string | null>(null);
-  const [successMsg,  setSuccessMsg]  = useState<string | null>(null);
-  const [isFocused,   setIsFocused]   = useState(false);
-  const [demoMode,    setDemoMode]    = useState(false);
+  const [input,          setInput]          = useState('');
+  const [loading,        setLoading]        = useState(false);
+  const [error,          setError]          = useState<string | null>(null);
+  const [successMsg,     setSuccessMsg]     = useState<string | null>(null);
+  const [isFocused,      setIsFocused]      = useState(false);
 
-  const [fullResult,  setFullResult]  = useState<AnalyzeResult | null>(null);
-  const [ecosystems,  setEcosystems]  = useState<EcosystemSummary[]>([]);
-  const [activeEco,   setActiveEco]   = useState<string>('all');
+  const [fullResult,     setFullResult]     = useState<AnalyzeResult | null>(null);
+  const [ecosystems,     setEcosystems]     = useState<EcosystemSummary[]>([]);
+  const [activeEco,      setActiveEco]      = useState<string>('all');
   const [manifestGroups, setManifestGroups] = useState<Record<string, string[]>>({});
   const [activeManifest, setActiveManifest] = useState<string>('all');
+
+  // ── flash ────────────────────────────────────────────────────── //
 
   const flash = useCallback((msg: string, kind: 'ok' | 'err') => {
     if (kind === 'ok') { setSuccessMsg(msg); setError(null); }
     else               { setError(msg);      setSuccessMsg(null); }
     setTimeout(() => { setSuccessMsg(null); setError(null); }, 4000);
   }, []);
+
+  // ── filter ───────────────────────────────────────────────────── //
 
   const applyFilter = useCallback(
     (result: AnalyzeResult, eco: string, manifest: string) => {
@@ -185,7 +189,8 @@ export default function Header() {
 
       if (eco !== 'all') {
         nodes = nodes.filter(
-          (n) => (n.metadata?.ecosystem === eco) || (n.metadata?.isRoot && n.metadata?.ecosystem === eco),
+          (n) => n.metadata?.ecosystem === eco ||
+                 (n.metadata?.isRoot && n.metadata?.ecosystem === eco),
         );
       }
 
@@ -193,12 +198,9 @@ export default function Header() {
         const rootNode = nodes.find(
           (n) => n.metadata?.isRoot && n.metadata?.manifestPath === manifest,
         );
-
         if (rootNode) {
           const connectedDepIds = new Set(
-            edges
-              .filter((e) => e.source === rootNode.id)
-              .map((e) => e.target),
+            edges.filter((e) => e.source === rootNode.id).map((e) => e.target),
           );
           nodes = nodes.filter(
             (n) => n.id === rootNode.id || connectedDepIds.has(n.id),
@@ -207,8 +209,7 @@ export default function Header() {
           nodes = nodes.filter((n) => {
             if (n.metadata?.manifestPath === manifest) return true;
             const mp = n.metadata?.manifestPaths as string[] | undefined;
-            if (mp && mp.includes(manifest)) return true;
-            return false;
+            return mp?.includes(manifest) ?? false;
           });
         }
       }
@@ -222,6 +223,8 @@ export default function Header() {
     },
     [setGraphData],
   );
+
+  // ── analyze ──────────────────────────────────────────────────── //
 
   const handleAnalyze = useCallback(async () => {
     const parsed = parseRepoInput(input);
@@ -242,18 +245,29 @@ export default function Header() {
       const result = await callAnalyze(parsed.owner, parsed.repo, null);
       setFullResult(result);
       setEcosystems(result.ecosystems ?? []);
+
       const mg = (result.metadata.manifestGroups ?? {}) as Record<string, string[]>;
       setManifestGroups(mg);
+
       applyFilter(result, 'all', 'all');
 
       const ecoNames = [...new Set(result.ecosystems.map((e) => e.ecosystem))].join(', ');
-      flash(`✓ ${result.metadata.totalNodes} packages · ${ecoNames} · ${result.metadata.totalEdges} deps`, 'ok');
+      flash(
+        `✓ ${result.metadata.totalNodes} packages · ${ecoNames} · ${result.metadata.totalEdges} deps`,
+        'ok',
+      );
+
+      // ── NEW: notify Layout so it can start fetching Repo Intel ── //
+      onAnalyzeSuccess?.(parsed.owner, parsed.repo);
+
     } catch (err) {
       flash(err instanceof Error ? err.message : 'Analysis failed', 'err');
     } finally {
       setLoading(false);
     }
-  }, [input, flash, applyFilter]);
+  }, [input, flash, applyFilter, onAnalyzeSuccess]);
+
+  // ── eco / manifest change ─────────────────────────────────────── //
 
   const handleEcoChange = useCallback((eco: string) => {
     setActiveEco(eco);
@@ -266,41 +280,31 @@ export default function Header() {
     if (fullResult) applyFilter(fullResult, activeEco, manifest);
   }, [fullResult, activeEco, applyFilter]);
 
-  const toggleDemoMode = useCallback(() => {
-    const newDemoMode = !demoMode;
-    setDemoMode(newDemoMode);
-    if (setForceDisconnect) {
-      setForceDisconnect(newDemoMode);
-    }
-    flash(
-      newDemoMode 
-        ? '🎮 Demo Mode: API disconnected' 
-        : '🔌 Live Mode: API reconnected',
-      'ok'
-    );
-  }, [demoMode, setForceDisconnect, flash]);
+  // ── derived ───────────────────────────────────────────────────── //
 
   const uniqueEcos = [...new Set(ecosystems.map((e) => e.ecosystem))];
-  const currentManifests = activeEco !== 'all' && manifestGroups[activeEco]?.length > 1
-    ? manifestGroups[activeEco]
-    : [];
-
+  const currentManifests =
+    activeEco !== 'all' && manifestGroups[activeEco]?.length > 1
+      ? manifestGroups[activeEco]
+      : [];
   const ecoColor = ECOSYSTEM_COLORS[activeEco] ?? '#94a3b8';
 
+  // ── render ────────────────────────────────────────────────────── //
+
   return (
-    <motion.header 
+    <motion.header
       initial={{ y: -100 }}
       animate={{ y: 0 }}
-      transition={{ type: "spring", stiffness: 300, damping: 30 }}
+      transition={{ type: 'spring', stiffness: 300, damping: 30 }}
       className="shrink-0 border-b border-white/10 bg-black/80 backdrop-blur-2xl relative overflow-hidden"
     >
-      {/* Animated gradient background */}
+      {/* Animated sweep */}
       <motion.div
         className="absolute inset-0 bg-gradient-to-r from-transparent via-white/5 to-transparent"
         animate={{ x: ['-100%', '100%'] }}
-        transition={{ duration: 8, repeat: Infinity, ease: "linear" }}
+        transition={{ duration: 8, repeat: Infinity, ease: 'linear' }}
       />
-      
+
       {/* Glowing top border */}
       <motion.div
         className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-white/50 to-transparent"
@@ -308,20 +312,18 @@ export default function Header() {
         transition={{ duration: 2, repeat: Infinity }}
       />
 
-      {/* ── Row 1: logo + input + button + docs + demo + status ─────────────────── */}
+      {/* ── Row 1 ───────────────────────────────────────────────── */}
       <div className="flex items-center gap-3 px-6 py-4 relative z-10">
-        {/* Logo with enhanced animation */}
-        <motion.div 
+
+        {/* Logo */}
+        <motion.div
           className="flex items-center gap-2 shrink-0 cursor-pointer"
           whileHover={{ scale: 1.05 }}
           whileTap={{ scale: 0.95 }}
         >
           <motion.div
-            animate={{ 
-              rotate: [0, 360],
-              scale: [1, 1.1, 1],
-            }}
-            transition={{ duration: 3, repeat: Infinity, ease: "linear", repeatDelay: 2 }}
+            animate={{ rotate: [0, 360], scale: [1, 1.1, 1] }}
+            transition={{ duration: 3, repeat: Infinity, ease: 'linear', repeatDelay: 2 }}
             className="relative"
           >
             <div className="absolute inset-0 rounded-lg bg-white/20 blur-md animate-pulse" />
@@ -329,8 +331,7 @@ export default function Header() {
               <Zap className="w-4 h-4 text-black" />
             </div>
           </motion.div>
-          
-          <motion.span 
+          <motion.span
             className="text-base font-bold bg-gradient-to-r from-white to-zinc-400 bg-clip-text text-transparent hidden sm:block"
             animate={{ backgroundPosition: ['0%', '100%'] }}
             transition={{ duration: 3, repeat: Infinity }}
@@ -338,18 +339,17 @@ export default function Header() {
           >
             OpenPulse
           </motion.span>
-          
           <motion.div
             animate={{ rotate: 360 }}
-            transition={{ duration: 8, repeat: Infinity, ease: "linear" }}
+            transition={{ duration: 8, repeat: Infinity, ease: 'linear' }}
           >
             <Sparkles className="w-3 h-3 text-white/40" />
           </motion.div>
         </motion.div>
 
-        {/* Input with glow effect */}
+        {/* Input */}
         <div className="flex-1 flex items-center gap-2">
-          <motion.div 
+          <motion.div
             className="flex-1 relative"
             animate={isFocused ? { scale: 1.01 } : { scale: 1 }}
           >
@@ -377,23 +377,23 @@ export default function Header() {
             disabled={loading || !connected}
             whileHover={{ scale: 1.02 }}
             whileTap={{ scale: 0.98 }}
-            animate={!loading && connected ? { 
-              boxShadow: ['0 0 0px rgba(255,255,255,0)', '0 0 12px rgba(255,255,255,0.3)', '0 0 0px rgba(255,255,255,0)']
+            animate={!loading && connected ? {
+              boxShadow: ['0 0 0px rgba(255,255,255,0)', '0 0 12px rgba(255,255,255,0.3)', '0 0 0px rgba(255,255,255,0)'],
             } : {}}
             transition={{ duration: 1.5, repeat: Infinity }}
             className="shrink-0 flex items-center gap-2 rounded-xl px-5 py-2.5 text-sm font-medium transition-all relative overflow-hidden bg-white/10 hover:bg-white/20 text-white border border-white/20 disabled:opacity-40 disabled:cursor-not-allowed"
           >
             {loading ? (
               <>
-                <motion.svg 
-                  className="w-4 h-4 animate-spin" 
-                  fill="none" 
+                <motion.svg
+                  className="w-4 h-4"
+                  fill="none"
                   viewBox="0 0 24 24"
                   animate={{ rotate: 360 }}
-                  transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+                  transition={{ duration: 1, repeat: Infinity, ease: 'linear' }}
                 >
-                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
-                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4l3-3-3-3v4A8 8 0 004 12z"/>
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4l3-3-3-3v4A8 8 0 004 12z" />
                 </motion.svg>
                 Scanning…
               </>
@@ -406,65 +406,26 @@ export default function Header() {
           </motion.button>
         </div>
 
-        {/* Docs Button */}
-        <motion.a
-          href="/docs"
-          whileHover={{ scale: 1.05, y: -1 }}
-          whileTap={{ scale: 0.95 }}
-          className="shrink-0 flex items-center gap-1.5 rounded-xl px-3 py-2 text-xs font-medium transition-all bg-white/5 hover:bg-white/10 text-zinc-400 hover:text-white border border-white/10 hover:border-white/20"
-        >
-          <FileText className="w-4 h-4" />
-          <span className="hidden sm:inline">Docs</span>
-        </motion.a>
-
-        {/* Demo Mode Toggle */}
-        <motion.button
-          type="button"
-          onClick={toggleDemoMode}
-          whileHover={{ scale: 1.05, y: -1 }}
-          whileTap={{ scale: 0.95 }}
-          animate={demoMode ? { 
-            boxShadow: ['0 0 0px rgba(251,191,36,0)', '0 0 8px rgba(251,191,36,0.5)', '0 0 0px rgba(251,191,36,0)']
-          } : {}}
-          transition={{ duration: 1.5, repeat: demoMode ? Infinity : 0 }}
-          className="shrink-0 flex items-center gap-1.5 rounded-xl px-3 py-2 text-xs font-medium transition-all border relative overflow-hidden"
-          style={{
-            backgroundColor: demoMode ? 'rgba(251,191,36,0.15)' : 'rgba(255,255,255,0.05)',
-            borderColor: demoMode ? 'rgba(251,191,36,0.5)' : 'rgba(255,255,255,0.1)',
-            color: demoMode ? '#fbbf24' : '#94a3b8',
-          }}
-        >
-          {demoMode && (
-            <motion.div
-              className="absolute inset-0 bg-gradient-to-r from-transparent via-amber-400/10 to-transparent"
-              animate={{ x: ['-100%', '100%'] }}
-              transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
-            />
-          )}
-          <Power className="w-4 h-4" />
-          <span className="hidden sm:inline">{demoMode ? 'Demo' : 'Live'}</span>
-        </motion.button>
-
-        {/* API status with enhanced indicator */}
-        <motion.div 
+        {/* API status */}
+        <motion.div
           className="shrink-0 flex items-center gap-1.5 text-xs"
-          animate={connected ? { 
-            boxShadow: ['0 0 0px rgba(34,197,94,0)', '0 0 8px rgba(34,197,94,0.5)', '0 0 0px rgba(34,197,94,0)']
+          animate={connected ? {
+            boxShadow: ['0 0 0px rgba(34,197,94,0)', '0 0 8px rgba(34,197,94,0.5)', '0 0 0px rgba(34,197,94,0)'],
           } : {}}
           transition={{ duration: 1.5, repeat: Infinity }}
         >
-          <motion.span 
+          <motion.span
             className={`w-2 h-2 rounded-full ${connected ? 'bg-emerald-400' : 'bg-rose-500'}`}
             animate={connected ? { scale: [1, 1.3, 1] } : {}}
             transition={{ duration: 1, repeat: Infinity }}
           />
-          <span className={`hidden sm:inline ${connected ? 'text-emerald-400' : 'text-rose-400'}`}>
+          <span className={connected ? 'text-emerald-400' : 'text-rose-400'}>
             {connected ? 'API Live' : 'Offline'}
           </span>
         </motion.div>
       </div>
 
-      {/* ── Feedback with animation ───────────────────────────────── */}
+      {/* ── Feedback ─────────────────────────────────────────────── */}
       <AnimatePresence>
         {(error || successMsg) && (
           <motion.div
@@ -478,15 +439,15 @@ export default function Header() {
         )}
       </AnimatePresence>
 
-      {/* ── Row 2: Level 1 — ecosystem selector ──────────────────── */}
+      {/* ── Row 2: Ecosystem selector ─────────────────────────────── */}
       {uniqueEcos.length > 0 && (
-        <motion.div 
+        <motion.div
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.2 }}
           className="flex items-center gap-2 px-6 pb-2 flex-wrap"
         >
-          <motion.span 
+          <motion.span
             className="text-[10px] uppercase tracking-widest text-zinc-500 shrink-0 flex items-center gap-1"
             whileHover={{ letterSpacing: '0.2em' }}
           >
@@ -514,8 +475,7 @@ export default function Header() {
             );
           })}
 
-          {/* dep counts on the right */}
-          <motion.div 
+          <motion.div
             className="ml-auto flex items-center gap-3"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
@@ -526,8 +486,8 @@ export default function Header() {
                 .filter((e) => e.ecosystem === eco)
                 .reduce((s, e) => s + e.totalDeps, 0);
               return (
-                <motion.span 
-                  key={eco} 
+                <motion.span
+                  key={eco}
                   className="text-[10px] text-zinc-600 font-mono flex items-center gap-1"
                   whileHover={{ scale: 1.05 }}
                 >
@@ -541,15 +501,15 @@ export default function Header() {
         </motion.div>
       )}
 
-      {/* ── Row 3: Level 2 — manifest selector ───────────────────── */}
+      {/* ── Row 3: Manifest selector ──────────────────────────────── */}
       {currentManifests.length > 0 && (
-        <motion.div 
+        <motion.div
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.3 }}
           className="flex items-center gap-2 px-6 pb-3 flex-wrap"
         >
-          <motion.span 
+          <motion.span
             className="text-zinc-600 text-xs shrink-0 pl-2"
             animate={{ x: [0, 3, 0] }}
             transition={{ duration: 1, repeat: Infinity }}

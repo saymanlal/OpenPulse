@@ -1,6 +1,6 @@
 import type { AnalyzerGraphData } from '@/types/graph';
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'https://openpulse-43sj.onrender.com';
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || ' http://127.0.0.1:8001';
 
 export class ApiClient {
   constructor(private readonly baseUrl: string = API_BASE_URL) {}

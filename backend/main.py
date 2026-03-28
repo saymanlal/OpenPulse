@@ -60,3 +60,8 @@ async def health():
         "service": "openpulse-api",
         "version": "1.0.0"
     }
+
+
+from app.api import analyze, graph, repo_intel   # repo_intel add kiya
+
+app.include_router(repo_intel.router, tags=["repo-intel"])  # ye add karo

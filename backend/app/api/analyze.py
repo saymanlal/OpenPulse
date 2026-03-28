@@ -138,6 +138,11 @@ async def analyze_repo(req: AnalyzeRequest) -> AnalyzeResponse:
                     round(pos[1] + offset[1], 2),
                     round(pos[2] + offset[2], 2),
                 ]
+                # ── NEW: stamp owner/repo on every root node ──────── #
+                if node.get("metadata", {}).get("isRoot"):
+                    node["metadata"]["repoOwner"] = req.owner
+                    node["metadata"]["repoName"]  = req.repo
+                # ────────────────────────────────────────────────────── #
                 node_index_map[nid] = len(all_nodes)
                 all_nodes.append(node)
             else:
@@ -170,9 +175,6 @@ async def analyze_repo(req: AnalyzeRequest) -> AnalyzeResponse:
             "totalEdges":      total_edges,
             "avgRisk":         round(avg_risk, 3),
             "ecosystemsFound": list(manifest_groups.keys()),
-            # Frontend uses this to build the manifest-picker UI.
-            # e.g. { "npm": ["frontend/package.json", "backend/package.json"],
-            #        "python": ["requirements.txt", "pyproject.toml"] }
             "manifestGroups":  manifest_groups,
         },
     )
@@ -182,7 +184,6 @@ async def analyze_repo(req: AnalyzeRequest) -> AnalyzeResponse:
 #  3D cluster positioning                                              #
 # ------------------------------------------------------------------ #
 
-# Base XZ positions per ecosystem
 _ECOSYSTEM_BASE: dict[str, tuple[float, float]] = {
     "npm":     (  0.0,   0.0),
     "python":  ( 90.0,   0.0),
@@ -191,18 +192,10 @@ _ECOSYSTEM_BASE: dict[str, tuple[float, float]] = {
     "unknown": (  0.0, -90.0),
 }
 
-_MULTI_MANIFEST_FAN = 60.0   # units between clusters of the same ecosystem
+_MULTI_MANIFEST_FAN = 60.0
 
 
 def _ecosystem_offset(ecosystem: str, global_index: int, eco_occurrence: int) -> list[float]:
-    """
-    Return [dx, dy, dz] to position this manifest's cluster in 3D space.
-
-    - ecosystem     : "npm" | "python" | ...
-    - global_index  : position in the overall list (fallback for unknown ecosystems)
-    - eco_occurrence: 0 for first manifest of this ecosystem, 1 for second, etc.
-      Multiple manifests of the same ecosystem fan out perpendicularly.
-    """
     if ecosystem in _ECOSYSTEM_BASE:
         bx, bz = _ECOSYSTEM_BASE[ecosystem]
     else:
@@ -213,7 +206,6 @@ def _ecosystem_offset(ecosystem: str, global_index: int, eco_occurrence: int) ->
     if eco_occurrence == 0:
         return [bx, 0.0, bz]
 
-    # Fan out perpendicular to the base axis
     length = math.sqrt(bx ** 2 + bz ** 2) or 1.0
     fan_x = (-bz / length) * _MULTI_MANIFEST_FAN * eco_occurrence
     fan_z = ( bx / length) * _MULTI_MANIFEST_FAN * eco_occurrence
