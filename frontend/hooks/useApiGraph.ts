@@ -119,12 +119,20 @@ export function useSaveGraphToApi() {
   return { saveGraph, loading };
 }
 
-// API Connection Health Check
+// API Connection Health Check with Demo Mode support
 export function useApiConnection() {
   const [connected, setConnected] = useState<boolean>(false);
   const [checking, setChecking] = useState<boolean>(true);
+  const [forceDisconnect, setForceDisconnect] = useState<boolean>(false);
 
   useEffect(() => {
+    // If demo mode is active, force offline state
+    if (forceDisconnect) {
+      setConnected(false);
+      setChecking(false);
+      return;
+    }
+
     const checkConnection = async () => {
       try {
         const controller = new AbortController();
@@ -152,7 +160,7 @@ export function useApiConnection() {
     const interval = setInterval(checkConnection, 30000);
 
     return () => clearInterval(interval);
-  }, []);
+  }, [forceDisconnect]);
 
-  return { connected, checking };
+  return { connected, checking, setForceDisconnect };
 }

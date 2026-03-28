@@ -16,7 +16,9 @@ import {
   Cpu,
   Sparkles,
   ChevronRight,
-  Layers
+  Layers,
+  FileText,
+  Power
 } from 'lucide-react';
 
 // ── Types ──────────────────────────────────────────────────────────── //
@@ -155,13 +157,14 @@ function ManifestBadge({
 
 export default function Header() {
   const setGraphData  = useGraphStore((s) => s.setGraphData);
-  const { connected } = useApiConnection();
+  const { connected, setForceDisconnect } = useApiConnection();
 
   const [input,       setInput]       = useState('');
   const [loading,     setLoading]     = useState(false);
   const [error,       setError]       = useState<string | null>(null);
   const [successMsg,  setSuccessMsg]  = useState<string | null>(null);
   const [isFocused,   setIsFocused]   = useState(false);
+  const [demoMode,    setDemoMode]    = useState(false);
 
   const [fullResult,  setFullResult]  = useState<AnalyzeResult | null>(null);
   const [ecosystems,  setEcosystems]  = useState<EcosystemSummary[]>([]);
@@ -263,6 +266,20 @@ export default function Header() {
     if (fullResult) applyFilter(fullResult, activeEco, manifest);
   }, [fullResult, activeEco, applyFilter]);
 
+  const toggleDemoMode = useCallback(() => {
+    const newDemoMode = !demoMode;
+    setDemoMode(newDemoMode);
+    if (setForceDisconnect) {
+      setForceDisconnect(newDemoMode);
+    }
+    flash(
+      newDemoMode 
+        ? '🎮 Demo Mode: API disconnected' 
+        : '🔌 Live Mode: API reconnected',
+      'ok'
+    );
+  }, [demoMode, setForceDisconnect, flash]);
+
   const uniqueEcos = [...new Set(ecosystems.map((e) => e.ecosystem))];
   const currentManifests = activeEco !== 'all' && manifestGroups[activeEco]?.length > 1
     ? manifestGroups[activeEco]
@@ -291,7 +308,7 @@ export default function Header() {
         transition={{ duration: 2, repeat: Infinity }}
       />
 
-      {/* ── Row 1: logo + input + button + status ─────────────────── */}
+      {/* ── Row 1: logo + input + button + docs + demo + status ─────────────────── */}
       <div className="flex items-center gap-3 px-6 py-4 relative z-10">
         {/* Logo with enhanced animation */}
         <motion.div 
@@ -389,6 +406,45 @@ export default function Header() {
           </motion.button>
         </div>
 
+        {/* Docs Button */}
+        <motion.a
+          href="/docs"
+          whileHover={{ scale: 1.05, y: -1 }}
+          whileTap={{ scale: 0.95 }}
+          className="shrink-0 flex items-center gap-1.5 rounded-xl px-3 py-2 text-xs font-medium transition-all bg-white/5 hover:bg-white/10 text-zinc-400 hover:text-white border border-white/10 hover:border-white/20"
+        >
+          <FileText className="w-4 h-4" />
+          <span className="hidden sm:inline">Docs</span>
+        </motion.a>
+
+        {/* Demo Mode Toggle */}
+        <motion.button
+          type="button"
+          onClick={toggleDemoMode}
+          whileHover={{ scale: 1.05, y: -1 }}
+          whileTap={{ scale: 0.95 }}
+          animate={demoMode ? { 
+            boxShadow: ['0 0 0px rgba(251,191,36,0)', '0 0 8px rgba(251,191,36,0.5)', '0 0 0px rgba(251,191,36,0)']
+          } : {}}
+          transition={{ duration: 1.5, repeat: demoMode ? Infinity : 0 }}
+          className="shrink-0 flex items-center gap-1.5 rounded-xl px-3 py-2 text-xs font-medium transition-all border relative overflow-hidden"
+          style={{
+            backgroundColor: demoMode ? 'rgba(251,191,36,0.15)' : 'rgba(255,255,255,0.05)',
+            borderColor: demoMode ? 'rgba(251,191,36,0.5)' : 'rgba(255,255,255,0.1)',
+            color: demoMode ? '#fbbf24' : '#94a3b8',
+          }}
+        >
+          {demoMode && (
+            <motion.div
+              className="absolute inset-0 bg-gradient-to-r from-transparent via-amber-400/10 to-transparent"
+              animate={{ x: ['-100%', '100%'] }}
+              transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
+            />
+          )}
+          <Power className="w-4 h-4" />
+          <span className="hidden sm:inline">{demoMode ? 'Demo' : 'Live'}</span>
+        </motion.button>
+
         {/* API status with enhanced indicator */}
         <motion.div 
           className="shrink-0 flex items-center gap-1.5 text-xs"
@@ -402,7 +458,7 @@ export default function Header() {
             animate={connected ? { scale: [1, 1.3, 1] } : {}}
             transition={{ duration: 1, repeat: Infinity }}
           />
-          <span className={connected ? 'text-emerald-400' : 'text-rose-400'}>
+          <span className={`hidden sm:inline ${connected ? 'text-emerald-400' : 'text-rose-400'}`}>
             {connected ? 'API Live' : 'Offline'}
           </span>
         </motion.div>
