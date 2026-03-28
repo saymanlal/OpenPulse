@@ -1,6 +1,6 @@
 // lib/cyberSampleData.ts
-import type { CyberNode, CyberEdge, IPNodeMetadata, ThreatNodeMetadata, VulnerabilityNodeMetadata } from './cyber';
-import { IPType, ThreatActorType, ThreatSeverity, VulnerabilitySeverity, AttackTechnique, CyberRelationType } from './cyber';
+import type { CyberNode, CyberEdge, IPNodeMetadata, ThreatNodeMetadata, VulnerabilityNodeMetadata } from '@/types/cyber';
+import { IPType, ThreatActorType, ThreatSeverity, VulnerabilitySeverity, AttackTechnique, CyberRelationType } from '@/types/cyber';
 
 /**
  * Generate sample cyber intelligence graph
