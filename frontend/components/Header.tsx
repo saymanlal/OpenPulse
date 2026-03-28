@@ -2,10 +2,10 @@
 
 import { useState, useCallback, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { useGraphStore } from '../stores/graphStore';
-import { useApiConnection } from '../hooks/useApiGraph';
-import { ECOSYSTEM_COLORS } from '../lib/constants';
-import type { GraphData } from '../types/graph';
+import { useGraphStore } from '@/stores/graphStore';
+import { useApiConnection } from '@/hooks/useApiGraph';
+import { ECOSYSTEM_COLORS } from '@/lib/constants';
+import type { GraphData } from '@/types/graph';
 import { 
   Search, 
   Zap, 

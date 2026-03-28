@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useGraphStore } from '../stores/graphStore';
+import { useGraphStore } from '@/stores/graphStore';
 
 export default function NodeTooltip() {
   const nodes = useGraphStore((s) => s.nodes);

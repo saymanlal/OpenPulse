@@ -3,7 +3,7 @@
 import { useRef } from 'react';
 import { useThree, useFrame } from '@react-three/fiber';
 import { OrbitControls } from '@react-three/drei';
-import { SCENE_CONFIG } from '../lib/constants';
+import { SCENE_CONFIG } from '@/lib/constants';
 import type { OrbitControls as OrbitControlsImpl } from 'three-stdlib';
 
 export default function CameraController() {

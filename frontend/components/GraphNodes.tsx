@@ -4,8 +4,8 @@ import { useMemo, useRef } from 'react';
 import { ThreeEvent, useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 
-import { NODE_CONFIG } from '../lib/constants';
-import { useGraphStore } from '../stores/graphStore';
+import { NODE_CONFIG } from '@/lib/constants';
+import { useGraphStore } from '@/stores/graphStore';
 
 export default function GraphNodes() {
   const nodes = useGraphStore((s) => s.nodes);
