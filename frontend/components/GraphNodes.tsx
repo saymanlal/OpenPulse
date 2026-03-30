@@ -1,7 +1,6 @@
 'use client';
 
 import { useMemo, useRef } from 'react';
-import { ThreeEvent, useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 
 import { NODE_CONFIG } from '@/lib/constants';
@@ -16,7 +15,6 @@ export default function GraphNodes() {
 
   const groupRef = useRef<THREE.Group>(null);
 
-  // Create materials for different states
   const silverMaterial = useMemo(() => new THREE.MeshStandardMaterial({
     color: '#c0c0c0',
     metalness: 0.85,
@@ -51,17 +49,18 @@ export default function GraphNodes() {
 
   return (
     <group ref={groupRef}>
-      {nodes.map((node, index) => {
+      {nodes.filter((node) => node.position !== undefined).map((node) => {
         const isSelected = node.id === selectedNodeId;
         const isHovered = node.id === hoveredNodeId;
         const material = getMaterialForNode(node.id, isHovered, isSelected);
         const baseScale = NODE_CONFIG.baseSize * (node.size ?? 1);
         const scale = baseScale * (isSelected ? 1.2 : isHovered ? 1.1 : 1);
-        
+        const pos = node.position!;
+
         return (
           <mesh
             key={node.id}
-            position={[node.position[0], node.position[1], node.position[2]]}
+            position={[pos[0], pos[1], pos[2]]}
             onClick={(e) => {
               e.stopPropagation();
               setSelectedNode(node.id === selectedNodeId ? null : node.id);
