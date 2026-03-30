@@ -50,6 +50,10 @@ interface VulnerabilityAlert {
   timestamp: number;
 }
 
+interface HeaderProps {
+  onAnalyzeSuccess?: (owner: string, repo: string) => void;
+}
+
 // ── Demo Data ──────────────────────────────────────────────────────── //
 
 const DEMO_DATA: AnalyzeResult = {
@@ -73,13 +77,13 @@ const DEMO_DATA: AnalyzeResult = {
     },
   ],
   nodes: [
-    { id: 'root-1', label: 'demo-app', type: 'root', riskScore: 0.3, metadata: { isRoot: true, ecosystem: 'npm', manifestPath: 'package.json' } },
+    { id: 'root-1', label: 'demo-app', type: 'root', riskScore: 0.3, metadata: { isRoot: true, ecosystem: 'npm', manifestPath: 'package.json', repoOwner: 'demo', repoName: 'app' } },
     { id: 'react', label: 'react', type: 'library', riskScore: 0.15, metadata: { ecosystem: 'npm', version: '18.2.0', manifestPath: 'package.json' } },
     { id: 'lodash', label: 'lodash', type: 'library', riskScore: 0.85, metadata: { ecosystem: 'npm', version: '4.17.20', manifestPath: 'package.json', vulnerabilities: ['CVE-2021-23337'] } },
     { id: 'axios', label: 'axios', type: 'library', riskScore: 0.25, metadata: { ecosystem: 'npm', version: '1.4.0', manifestPath: 'package.json' } },
     { id: 'express', label: 'express', type: 'library', riskScore: 0.72, metadata: { ecosystem: 'npm', version: '4.17.1', manifestPath: 'package.json', vulnerabilities: ['CVE-2022-24999'] } },
     { id: 'webpack', label: 'webpack', type: 'library', riskScore: 0.35, metadata: { ecosystem: 'npm', version: '5.75.0', manifestPath: 'package.json', isDev: true } },
-    { id: 'root-2', label: 'demo-backend', type: 'root', riskScore: 0.4, metadata: { isRoot: true, ecosystem: 'pip', manifestPath: 'requirements.txt' } },
+    { id: 'root-2', label: 'demo-backend', type: 'root', riskScore: 0.4, metadata: { isRoot: true, ecosystem: 'pip', manifestPath: 'requirements.txt', repoOwner: 'demo', repoName: 'backend' } },
     { id: 'django', label: 'django', type: 'library', riskScore: 0.2, metadata: { ecosystem: 'pip', version: '4.2.0', manifestPath: 'requirements.txt' } },
     { id: 'requests', label: 'requests', type: 'library', riskScore: 0.18, metadata: { ecosystem: 'pip', version: '2.31.0', manifestPath: 'requirements.txt' } },
     { id: 'pillow', label: 'pillow', type: 'library', riskScore: 0.91, metadata: { ecosystem: 'pip', version: '9.0.0', manifestPath: 'requirements.txt', vulnerabilities: ['CVE-2023-44271', 'CVE-2023-50447'] } },
@@ -171,7 +175,7 @@ async function callAnalyze(
   return res.json();
 }
 
-// ── Components ─────────────────────────────────────────────────────── //
+// ── Components (Same as before - EcoBadge, ManifestBadge, VulnerabilityAlertBanner) ──
 
 function EcoBadge({
   eco, count, active, onClick,
@@ -350,7 +354,7 @@ function VulnerabilityAlertBanner({
 
 // ── Main Header ────────────────────────────────────────────────────── //
 
-export default function Header() {
+export default function Header({ onAnalyzeSuccess }: HeaderProps = {}) {
   const setNodes = useGraphStore((s) => s.setNodes);
   const setEdges = useGraphStore((s) => s.setEdges);
   const setSelectedNode = useGraphStore((s) => s.setSelectedNode);
@@ -442,12 +446,17 @@ export default function Header() {
       const ecoNames = [...new Set(DEMO_DATA.ecosystems.map((e) => e.ecosystem))].join(', ');
       flash(`🎮 Demo: ${DEMO_DATA.metadata.totalNodes} packages · ${ecoNames} · ${DEMO_DATA.metadata.totalEdges} deps`, 'ok');
 
+      // Trigger onAnalyzeSuccess callback for RepoIntel
+      if (onAnalyzeSuccess) {
+        onAnalyzeSuccess('demo', 'app');
+      }
+
       setTimeout(() => {
         setVulnerabilityAlerts(VULNERABILITY_ALERTS);
         setShowVulnAlerts(true);
       }, 6000);
     }, 1000);
-  }, [flash, applyFilter]);
+  }, [flash, applyFilter, onAnalyzeSuccess]);
 
   const handleAnalyze = useCallback(async () => {
     if (demoMode) {
@@ -475,18 +484,23 @@ export default function Header() {
       const result = await callAnalyze(parsed.owner, parsed.repo, null);
       setFullResult(result);
       setEcosystems(result.ecosystems ?? []);
-      const mg = (result.metadata.manifestGroups ?? {}) as Record<string, string[]>;
+      const mg = (DEMO_DATA.metadata.manifestGroups ?? {}) as Record<string, string[]>;
       setManifestGroups(mg);
       applyFilter(result, 'all', 'all');
 
       const ecoNames = [...new Set(result.ecosystems.map((e) => e.ecosystem))].join(', ');
       flash(`✓ ${result.metadata.totalNodes} packages · ${ecoNames} · ${result.metadata.totalEdges} deps`, 'ok');
+
+      // Trigger onAnalyzeSuccess callback for RepoIntel
+      if (onAnalyzeSuccess) {
+        onAnalyzeSuccess(parsed.owner, parsed.repo);
+      }
     } catch (err) {
       flash(err instanceof Error ? err.message : 'Analysis failed', 'err');
     } finally {
       setLoading(false);
     }
-  }, [input, flash, applyFilter, demoMode, loadDemoData]);
+  }, [input, flash, applyFilter, demoMode, loadDemoData, onAnalyzeSuccess]);
 
   const handleEcoChange = useCallback((eco: string) => {
     setActiveEco(eco);
