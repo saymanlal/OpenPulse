@@ -4,10 +4,10 @@ import { useMemo } from 'react';
 import * as THREE from 'three';
 import { useGraphStore } from '@/stores/graphStore';
 
-const WHITE_COLOR = new THREE.Color('#ffffff'); // Pure white for all edges
-const DEPENDS_ON_COLOR = new THREE.Color('#34d399');  // green - outgoing (this node depends on)
-const USED_BY_COLOR = new THREE.Color('#fb923c');      // orange - incoming (others depend on this)
-const HOVER_COLOR = new THREE.Color('#94a3b8');        // subtle gray for hover
+const WHITE_COLOR = new THREE.Color('#ffffff');
+const DEPENDS_ON_COLOR = new THREE.Color('#34d399');
+const USED_BY_COLOR = new THREE.Color('#fb923c');
+const HOVER_COLOR = new THREE.Color('#94a3b8');
 
 export default function GraphEdges() {
   const nodes = useGraphStore((state) => state.nodes);
@@ -18,7 +18,9 @@ export default function GraphEdges() {
   const nodePositionLookup = useMemo(() => {
     const lookup = new Map<string, [number, number, number]>();
     for (const node of nodes) {
-      lookup.set(node.id, node.position);
+      if (node.position) {
+        lookup.set(node.id, node.position);
+      }
     }
     return lookup;
   }, [nodes]);
@@ -26,11 +28,9 @@ export default function GraphEdges() {
   const { allEdgesGeometry, selectedEdgesGeometry } = useMemo(() => {
     if (edges.length === 0) return { allEdgesGeometry: null, selectedEdgesGeometry: null };
 
-    // All edges - white by default
     const allPositions = new Float32Array(edges.length * 6);
     const allColors = new Float32Array(edges.length * 6);
 
-    // Selected/hovered edges with colors
     const selectedEdges: { source: [number,number,number], target: [number,number,number], color: THREE.Color }[] = [];
 
     for (let i = 0; i < edges.length; i++) {
@@ -43,7 +43,6 @@ export default function GraphEdges() {
       allPositions[base]     = source[0]; allPositions[base + 1] = source[1]; allPositions[base + 2] = source[2];
       allPositions[base + 3] = target[0]; allPositions[base + 4] = target[1]; allPositions[base + 5] = target[2];
 
-      // All edges are white by default
       allColors[base]     = WHITE_COLOR.r;
       allColors[base + 1] = WHITE_COLOR.g;
       allColors[base + 2] = WHITE_COLOR.b;
@@ -51,9 +50,8 @@ export default function GraphEdges() {
       allColors[base + 4] = WHITE_COLOR.g;
       allColors[base + 5] = WHITE_COLOR.b;
 
-      // Check if this edge should be highlighted with color
-      const isOutgoing = edge.source === selectedNodeId;  // this node → dependency
-      const isIncoming = edge.target === selectedNodeId;  // dependency → this node
+      const isOutgoing = edge.source === selectedNodeId;
+      const isIncoming = edge.target === selectedNodeId;
       const isHoverConn = hoveredNodeId !== null && (edge.source === hoveredNodeId || edge.target === hoveredNodeId) && !selectedNodeId;
 
       if (isOutgoing) {
@@ -65,12 +63,10 @@ export default function GraphEdges() {
       }
     }
 
-    // Geometry for all white edges
     const allGeo = new THREE.BufferGeometry();
     allGeo.setAttribute('position', new THREE.BufferAttribute(allPositions, 3));
     allGeo.setAttribute('color', new THREE.BufferAttribute(allColors, 3));
 
-    // Geometry for colorful selected/hovered edges
     let selectedGeo: THREE.BufferGeometry | null = null;
     if (selectedEdges.length > 0) {
       const vPositions = new Float32Array(selectedEdges.length * 6);
@@ -92,7 +88,6 @@ export default function GraphEdges() {
 
   return (
     <>
-      {/* All edges - very subtle white with minimal opacity */}
       {allEdgesGeometry && (
         <lineSegments geometry={allEdgesGeometry} frustumCulled={false}>
           <lineBasicMaterial
@@ -104,7 +99,6 @@ export default function GraphEdges() {
           />
         </lineSegments>
       )}
-      {/* Highlighted edges in color with good visibility */}
       {selectedEdgesGeometry && (
         <lineSegments geometry={selectedEdgesGeometry} frustumCulled={false} renderOrder={1}>
           <lineBasicMaterial
