@@ -76,7 +76,7 @@ const DEMO_DATA: AnalyzeResult = {
       devDeps: 5,
     },
   ],
-  nodes: [
+  nodes: ([
     { id: 'root-1', label: 'demo-app', type: 'root', riskScore: 0.3, metadata: { isRoot: true, ecosystem: 'npm', manifestPath: 'package.json', repoOwner: 'demo', repoName: 'app' } },
     { id: 'react', label: 'react', type: 'library', riskScore: 0.15, metadata: { ecosystem: 'npm', version: '18.2.0', manifestPath: 'package.json' } },
     { id: 'lodash', label: 'lodash', type: 'library', riskScore: 0.85, metadata: { ecosystem: 'npm', version: '4.17.20', manifestPath: 'package.json', vulnerabilities: ['CVE-2021-23337'] } },
@@ -89,8 +89,8 @@ const DEMO_DATA: AnalyzeResult = {
     { id: 'pillow', label: 'pillow', type: 'library', riskScore: 0.91, metadata: { ecosystem: 'pip', version: '9.0.0', manifestPath: 'requirements.txt', vulnerabilities: ['CVE-2023-44271', 'CVE-2023-50447'] } },
     { id: 'numpy', label: 'numpy', type: 'library', riskScore: 0.12, metadata: { ecosystem: 'pip', version: '1.24.0', manifestPath: 'requirements.txt' } },
     { id: 'pytest', label: 'pytest', type: 'library', riskScore: 0.22, metadata: { ecosystem: 'pip', version: '7.4.0', manifestPath: 'requirements.txt', isDev: true } },
-  ],
-  edges: [
+  ] as unknown) as GraphData['nodes'],
+  edges: ([
     { id: 'e1', source: 'root-1', target: 'react', metadata: {} },
     { id: 'e2', source: 'root-1', target: 'lodash', metadata: {} },
     { id: 'e3', source: 'root-1', target: 'axios', metadata: {} },
@@ -104,7 +104,7 @@ const DEMO_DATA: AnalyzeResult = {
     { id: 'e11', source: 'root-2', target: 'numpy', metadata: {} },
     { id: 'e12', source: 'root-2', target: 'pytest', metadata: {} },
     { id: 'e13', source: 'django', target: 'pillow', metadata: {} },
-  ],
+  ] as unknown) as GraphData['edges'],
   metadata: {
     totalNodes: 12,
     totalEdges: 13,
@@ -175,7 +175,7 @@ async function callAnalyze(
   return res.json();
 }
 
-// ── Components (Same as before - EcoBadge, ManifestBadge, VulnerabilityAlertBanner) ──
+// ── Components ─────────────────────────────────────────────────────── //
 
 function EcoBadge({
   eco, count, active, onClick,
@@ -446,7 +446,6 @@ export default function Header({ onAnalyzeSuccess }: HeaderProps = {}) {
       const ecoNames = [...new Set(DEMO_DATA.ecosystems.map((e) => e.ecosystem))].join(', ');
       flash(`🎮 Demo: ${DEMO_DATA.metadata.totalNodes} packages · ${ecoNames} · ${DEMO_DATA.metadata.totalEdges} deps`, 'ok');
 
-      // Trigger onAnalyzeSuccess callback for RepoIntel
       if (onAnalyzeSuccess) {
         onAnalyzeSuccess('demo', 'app');
       }
@@ -491,7 +490,6 @@ export default function Header({ onAnalyzeSuccess }: HeaderProps = {}) {
       const ecoNames = [...new Set(result.ecosystems.map((e) => e.ecosystem))].join(', ');
       flash(`✓ ${result.metadata.totalNodes} packages · ${ecoNames} · ${result.metadata.totalEdges} deps`, 'ok');
 
-      // Trigger onAnalyzeSuccess callback for RepoIntel
       if (onAnalyzeSuccess) {
         onAnalyzeSuccess(parsed.owner, parsed.repo);
       }
