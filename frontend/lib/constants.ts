@@ -67,6 +67,7 @@ export const EDGE_CONFIG = {
 } as const;
 
 export const NODE_COLORS: Record<NodeType, string> = {
+  root:          '#ffffff',   // ← add this
   service:       '#22d3ee',
   library:       '#a78bfa',
   repository:    '#f472b6',
