@@ -14,7 +14,7 @@ export interface GraphNode {
   id: string;
   label: string;
   type: NodeType;
-  position: [number, number, number];
+  position?: [number, number, number];
   metadata?: Record<string, unknown>;
   riskScore?: number;
   size?: number;
@@ -26,6 +26,7 @@ export interface GraphEdge {
   target: string;
   weight?: number;
   label?: string;
+  metadata?: Record<string, unknown>;
 }
 
 export interface GraphData {
