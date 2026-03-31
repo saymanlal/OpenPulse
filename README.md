@@ -7,6 +7,13 @@
 
 OpenPulse is a deployable dependency-graph explorer for public GitHub repositories. Enter a repository in `owner/name` format, let the FastAPI backend fetch its `package.json`, and inspect the resulting dependency graph in a performant 3D scene built with Next.js, react-three-fiber, and Three.js.
 
+![download (1) (2)](https://github.com/user-attachments/assets/92154596-4f8c-44ed-bb79-8f33376f9e3a)
+
+
+🎥 Full Demo Video: [Watch on YouTube](https://youtu.be/2wZaQG6DARE?si=cDe2bYSiSR88fzaz)
+
+🌐 Live Demo: [OpenPulse](https://open-pulse.onrender.com/)
+
 ## Problem statement
 
 Dependency trees are easy to generate but hard to understand. Flat package lists hide which repositories are pulling in many direct dependencies, which packages look riskier than others, and how a project is structurally organized. OpenPulse turns that package list into an interactive graph that is quick enough for live demos and simple enough to deploy on Vercel and Render.
