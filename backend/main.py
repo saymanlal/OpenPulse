@@ -34,12 +34,10 @@ app.include_router(repo_intel.router, prefix="/api", tags=["repo-intel"])
 
 @app.on_event("startup")
 async def startup():
-    """Initialize database on startup"""
     await init_db()
 
 @app.get("/")
 async def root():
-    """Root endpoint"""
     return {
         "status": "online",
         "service": "OpenPulse API",
@@ -55,7 +53,6 @@ async def root():
 
 @app.get("/health")
 async def health():
-    """Health check endpoint for connection testing"""
     return {
         "status": "healthy",
         "service": "openpulse-api",

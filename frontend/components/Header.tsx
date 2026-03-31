@@ -16,7 +16,10 @@ import {
   ChevronRight,
   Layers,
   FileText,
-  Power
+  Power,
+  AlertTriangle,
+  Shield,
+  X
 } from 'lucide-react';
 
 interface EcosystemSummary {
@@ -49,7 +52,10 @@ function parseRepoInput(raw: string): { owner: string; repo: string } | null {
   return null;
 }
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'https://openpulse-43sj.onrender.com';
+const API_BASE = process.env.NEXT_PUBLIC_API_URL?.trim() 
+  || (typeof window !== 'undefined' && window.location.hostname.includes('localhost') 
+      ? 'http://127.0.0.1:8001' 
+      : 'https://openpulse-43sj.onrender.com');
 
 async function callAnalyze(owner: string, repo: string, ecosystem: string | null): Promise<AnalyzeResult> {
   const res = await fetch(`${API_BASE}/api/analyze`, {
@@ -151,6 +157,9 @@ export default function Header({ onAnalyzeSuccess }: HeaderProps = {}) {
   const [manifestGroups, setManifestGroups] = useState<Record<string, string[]>>({});
   const [activeManifest, setActiveManifest] = useState<string>('all');
 
+  const [vulnerabilityAlerts, setVulnerabilityAlerts] = useState<VulnerabilityAlert[]>([]);
+  const [showVulnAlerts, setShowVulnAlerts] = useState(false);
+
   const flash = useCallback((msg: string, kind: 'ok' | 'err') => {
     if (kind === 'ok') { setSuccessMsg(msg); setError(null); }
     else { setError(msg); setSuccessMsg(null); }
@@ -184,12 +193,47 @@ export default function Header({ onAnalyzeSuccess }: HeaderProps = {}) {
       const nodeIds = new Set(nodes.map((n) => n.id));
       edges = edges.filter((e) => nodeIds.has(e.source as string) && nodeIds.has(e.target as string));
 
-      setGraphData({ nodes, edges });
+      setNodes(nodes);
+      setEdges(edges);
     },
-    [setGraphData],
+    [setNodes, setEdges],
   );
 
+  const loadDemoData = useCallback(() => {
+    setLoading(true);
+    setError(null);
+    setSuccessMsg(null);
+    setVulnerabilityAlerts([]);
+    setShowVulnAlerts(false);
+
+    setTimeout(() => {
+      setFullResult(DEMO_DATA);
+      setEcosystems(DEMO_DATA.ecosystems ?? []);
+      const mg = (DEMO_DATA.metadata.manifestGroups ?? {}) as Record<string, string[]>;
+      setManifestGroups(mg);
+      applyFilter(DEMO_DATA, 'all', 'all');
+      setLoading(false);
+
+      const ecoNames = [...new Set(DEMO_DATA.ecosystems.map((e) => e.ecosystem))].join(', ');
+      flash(`🎮 Demo: ${DEMO_DATA.metadata.totalNodes} packages · ${ecoNames} · ${DEMO_DATA.metadata.totalEdges} deps`, 'ok');
+
+      if (onAnalyzeSuccess) {
+        onAnalyzeSuccess('demo', 'app');
+      }
+
+      setTimeout(() => {
+        setVulnerabilityAlerts(VULNERABILITY_ALERTS);
+        setShowVulnAlerts(true);
+      }, 6000);
+    }, 1000);
+  }, [flash, applyFilter, onAnalyzeSuccess]);
+
   const handleAnalyze = useCallback(async () => {
+    if (demoMode) {
+      loadDemoData();
+      return;
+    }
+
     const parsed = parseRepoInput(input);
     if (!parsed) {
       flash('Use format: owner/repo or a full GitHub URL', 'err');
@@ -203,12 +247,14 @@ export default function Header({ onAnalyzeSuccess }: HeaderProps = {}) {
     setManifestGroups({});
     setActiveEco('all');
     setActiveManifest('all');
+    setVulnerabilityAlerts([]);
+    setShowVulnAlerts(false);
 
     try {
       const result = await callAnalyze(parsed.owner, parsed.repo, null);
       setFullResult(result);
       setEcosystems(result.ecosystems ?? []);
-      const mg = (result.metadata.manifestGroups ?? {}) as Record<string, string[]>;
+      const mg = (DEMO_DATA.metadata.manifestGroups ?? {}) as Record<string, string[]>;
       setManifestGroups(mg);
       applyFilter(result, 'all', 'all');
 
@@ -245,6 +291,14 @@ export default function Header({ onAnalyzeSuccess }: HeaderProps = {}) {
     }
     flash(newDemoMode ? '🎮 Demo Mode: API disconnected' : '🔌 Live Mode: API reconnected', 'ok');
   }, [demoMode, setForceDisconnect, flash]);
+
+  const handleDismissAlert = useCallback((alertId: string) => {
+    setVulnerabilityAlerts(prev => prev.filter(a => a.id !== alertId));
+  }, []);
+
+  const handleInspectVulnerability = useCallback((nodeId: string) => {
+    setSelectedNode(nodeId);
+  }, [setSelectedNode]);
 
   const uniqueEcos = [...new Set(ecosystems.map((e) => e.ecosystem))];
   const currentManifests = activeEco !== 'all' && manifestGroups[activeEco]?.length > 1 ? manifestGroups[activeEco] : [];

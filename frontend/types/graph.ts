@@ -7,7 +7,8 @@ export type NodeType =
   | 'server'
   | 'ip'
   | 'threat'
-  | 'vulnerability';
+  | 'vulnerability'
+  | 'root';
 
 export interface GraphNode {
   id: string;
@@ -25,6 +26,7 @@ export interface GraphEdge {
   target: string;
   weight?: number;
   label?: string;
+  metadata?: Record<string, unknown>;
 }
 
 export interface GraphData {

@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import Header from './Header';
 import Inspector from './Inspector';
+import RepoIntel from './RepoIntel';
 import ClientCanvasWrapper from './ClientCanvasWrapper';
 import NodeTooltip from './NodeTooltip';
 import FrontLoading from './FrontLoading';
