@@ -19,7 +19,6 @@ export default function Layout() {
 
   const { data: intelData, status: intelStatus, error: intelError, fetch: fetchIntel } = useRepoIntel();
 
-  // Extract owner/repo from graph store
   const nodes = useGraphStore((s) => s.nodes);
   const rootNode = nodes.find((n) => n.metadata?.isRoot);
   const repoOwner = (rootNode?.metadata?.repoOwner as string) ?? '';
@@ -46,7 +45,7 @@ export default function Layout() {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ duration: 0.6, ease: "easeOut" }}
-            className="flex min-h-screen flex-col bg-black text-slate-100"
+            className="h-screen overflow-hidden flex flex-col bg-black text-slate-100"
           >
             <Header onAnalyzeSuccess={(owner, repo) => {
               setPanelMode('inspector');
@@ -54,20 +53,15 @@ export default function Layout() {
             }} />
 
             <main
-              className="grid flex-1"
-              style={{
-                height: 'calc(100vh - 57px)',
-                gridTemplateColumns: 'minmax(0,1fr) 340px',
-              }}
+              className="grid flex-1 min-h-0"
+              style={{ gridTemplateColumns: 'minmax(0,1fr) 340px' }}
             >
-              <section className="relative">
+              <section className="relative overflow-hidden">
                 <ClientCanvasWrapper />
                 <NodeTooltip />
               </section>
 
-              {/* Right panel with tabs */}
               <div className="flex flex-col overflow-hidden border-l border-slate-800">
-                {/* Tab buttons */}
                 <div className="shrink-0 flex border-b border-slate-800">
                   <button
                     type="button"
@@ -99,8 +93,7 @@ export default function Layout() {
                   </button>
                 </div>
 
-                {/* Panel content */}
-                <div className="flex-1 overflow-hidden">
+                <div className="flex-1 min-h-0 overflow-hidden">
                   {panelMode === 'inspector' && <Inspector />}
 
                   {panelMode === 'intel' && intelStatus === 'loading' && (
