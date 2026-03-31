@@ -36,7 +36,11 @@ interface RepoIntelProps {
 
 // ─── Utilities ────────────────────────────────────────────────────────────── //
 
-function ghUrl(path: string) {
+function ghUrl(path: string, owner?: string, repo?: string) {
+  if (!owner || !repo || !path.includes(owner)) {
+    console.error("Invalid GitHub URL:", path, { owner, repo });
+    return "#";
+  }
   return `https://github.com/${path}`;
 }
 
@@ -196,7 +200,7 @@ function ContributorRow({
 
   return (
     <motion.a
-      href={ghUrl(contributor.author)}
+      href={`https://github.com/${contributor.author}`}
       target="_blank"
       rel="noopener noreferrer"
       initial={{ opacity: 0, x: -10 }}
@@ -365,7 +369,7 @@ function BranchBar({ branch, commits, max, owner, repo, idx }: {
 
   return (
     <motion.a
-      href={ghUrl(`${owner}/${repo}/tree/${branch}`)}
+    href={owner && repo ? ghUrl(`${owner}/${repo}/tree/${branch}`, owner, repo) : "#"}
       target="_blank"
       rel="noopener noreferrer"
       initial={{ opacity: 0, x: -10 }}
@@ -455,7 +459,7 @@ export default function RepoIntel({ data, owner, repo }: RepoIntelProps) {
           <div>
             <p className="text-[10px] uppercase tracking-widest text-slate-500 mb-0.5">Repository</p>
             <a
-              href={ghUrl(`${owner}/${repo}`)}
+              href={owner && repo ? ghUrl(`${owner}/${repo}`, owner, repo) : "#"}
               target="_blank"
               rel="noopener noreferrer"
               className="text-base font-bold text-slate-100 hover:text-indigo-400 transition-colors flex items-center gap-1.5 group"
@@ -504,7 +508,7 @@ export default function RepoIntel({ data, owner, repo }: RepoIntelProps) {
           <SectionTitle
             icon={GitCommit}
             title="Commit Activity"
-            href={ghUrl(`${owner}/${repo}/commits`)}
+            href={owner && repo ? ghUrl(`${owner}/${repo}/commits`, owner, repo) : "#"}
           />
           <CommitSparkline data={data.commitTimeline} />
         </Card>
@@ -514,7 +518,7 @@ export default function RepoIntel({ data, owner, repo }: RepoIntelProps) {
           <SectionTitle
             icon={Award}
             title="Contributors"
-            href={ghUrl(`${owner}/${repo}/graphs/contributors`)}
+            href={owner && repo ? ghUrl(`${owner}/${repo}/graphs/contributors`, owner, repo) : "#"}
           />
           <div className="space-y-0.5">
             <AnimatePresence>
@@ -549,7 +553,7 @@ export default function RepoIntel({ data, owner, repo }: RepoIntelProps) {
           <SectionTitle
             icon={GitPullRequest}
             title="Pull Requests"
-            href={ghUrl(`${owner}/${repo}/pulls`)}
+            href={owner && repo ? ghUrl(`${owner}/${repo}/pulls`, owner, repo) : "#"}
           />
           <PRDonut
             merged={data.prStats.merged}
@@ -577,7 +581,7 @@ export default function RepoIntel({ data, owner, repo }: RepoIntelProps) {
           <SectionTitle
             icon={Target}
             title="Issues"
-            href={ghUrl(`${owner}/${repo}/issues`)}
+            href={owner && repo ? ghUrl(`${owner}/${repo}/issues`, owner, repo) : "#"}
           />
           <div className="space-y-2">
             <IssueRow
@@ -585,14 +589,14 @@ export default function RepoIntel({ data, owner, repo }: RepoIntelProps) {
               label="Closed"
               value={data.issueStats.closed}
               color="bg-emerald-500/5 border-emerald-500/20 text-emerald-400"
-              href={ghUrl(`${owner}/${repo}/issues?state=closed`)}
+              href={owner && repo ? ghUrl(`${owner}/${repo}/issues?state=closed`, owner, repo) : "#"}
             />
             <IssueRow
               icon={XCircle}
               label="Open"
               value={data.issueStats.open}
               color="bg-amber-500/5 border-amber-500/20 text-amber-400"
-              href={ghUrl(`${owner}/${repo}/issues?state=open`)}
+              href={owner && repo ? ghUrl(`${owner}/${repo}/issues?state=open`, owner, repo) : "#"}
             />
             <IssueRow
               icon={Clock}
@@ -608,7 +612,7 @@ export default function RepoIntel({ data, owner, repo }: RepoIntelProps) {
           <SectionTitle
             icon={GitBranch}
             title="Branch Activity"
-            href={ghUrl(`${owner}/${repo}/branches`)}
+            href={owner && repo ? ghUrl(`${owner}/${repo}/branches`, owner, repo) : "#"}
           />
           <div className="space-y-2.5">
             {data.commitsByBranch.map((b, i) => (
@@ -646,7 +650,7 @@ export default function RepoIntel({ data, owner, repo }: RepoIntelProps) {
           <SectionTitle
             icon={Activity}
             title="Activity Heatmap"
-            href={ghUrl(`${owner}/${repo}/graphs/commit-activity`)}
+            href={owner && repo ? ghUrl(`${owner}/${repo}/graphs/commit-activity`, owner, repo) : "#"}
           />
           <ActivityHeatmap data={data.activityHeatmap} />
         </Card>
@@ -655,7 +659,7 @@ export default function RepoIntel({ data, owner, repo }: RepoIntelProps) {
         <div className="pt-2 pb-4 flex items-center justify-between">
           <p className="text-[9px] text-slate-700">Based on repository history</p>
           <a
-            href={ghUrl(`${owner}/${repo}`)}
+            href={owner && repo ? ghUrl(`${owner}/${repo}`, owner, repo) : "#"}
             target="_blank"
             rel="noopener noreferrer"
             className="text-[9px] text-slate-600 hover:text-indigo-400 transition-colors flex items-center gap-1"
