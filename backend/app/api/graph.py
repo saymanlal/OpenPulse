@@ -15,7 +15,7 @@ from app.models.schemas import (
     GraphDataCreate,
 )
 
-router = APIRouter(prefix="/api/graph", tags=["graph"])
+router = APIRouter(prefix="/graph", tags=["graph"])  # ✅ FIXED: was prefix="/api/graph"
 
 # Graph Data Endpoints
 @router.get("/data", response_model=GraphData)

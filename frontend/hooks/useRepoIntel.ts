@@ -1,94 +1,92 @@
-'use client';
-
 import { useState, useCallback } from 'react';
 
-const API_BASE =
-  process.env.NEXT_PUBLIC_API_URL?.trim() ||
-  (typeof window !== 'undefined' && window.location.hostname.includes('localhost')
-    ? 'http://127.0.0.1:8001'
-    : 'https://openpulse-43sj.onrender.com');
+// ✅ Smart API URL detection (same logic as api.ts)
+const getApiBaseUrl = (): string => {
+  if (process.env.NEXT_PUBLIC_API_URL) {
+    return process.env.NEXT_PUBLIC_API_URL;
+  }
+  
+  if (typeof window !== 'undefined') {
+    const hostname = window.location.hostname;
+    if (hostname === 'localhost' || hostname === '127.0.0.1') {
+      return 'http://localhost:8001';
+    }
+  }
+  
+  return 'https://openpulse-43sj.onrender.com';
+};
 
-// ── Types ──────────────────────────────────────────────────────────── //
-
-export interface ContributorStat {
-  login:      string;
-  commits:    number;
-  additions:  number;
-  deletions:  number;
-  pct:        number;
-}
-
-export interface CommitPoint {
-  date:  string;
-  count: number;
-}
-
-export interface ChurnFile {
-  path:    string;
-  changes: number;
-  commits: number;
-}
-
-export interface ModuleOwnership {
-  module:       string;
-  owner:        string;
-  ownerPct:     number;
-  contributors: number;
-}
+const API_BASE = getApiBaseUrl();
 
 export interface RepoIntelData {
-  healthScore:        number;
-  healthLabel:        string;
-  busFactor:          number;
-  totalCommits:       number;
-  activeDays:         number;
-  totalPRs:           number;
-  totalIssues:        number;
-  openIssues:         number;
-  momentumPct:        number;
-  activityDaysAgo:    number;
-  issueHandlingPct:   number;
-  contributorRiskPct: number;
-  contributors:       ContributorStat[];
-  timeline:           CommitPoint[];
-  churnFiles:         ChurnFile[];
-  moduleOwnership:    ModuleOwnership[];
+  commitTimeline: Array<{ date: string; count: number }>;
+  topContributors: Array<{ author: string; commits: number; avatar?: string }>;
+  commitsByBranch: Array<{ branch: string; commits: number }>;
+  
+  prStats: {
+    merged: number;
+    closed: number;
+    open: number;
+    successRate: number;
+  };
+  
+  issueStats: {
+    open: number;
+    closed: number;
+    avgResponseTime: number;
+  };
+  
+  healthMetrics: {
+    healthScore: number;
+    busFactor: number;
+    contributorRisk: number;
+    momentum: number;
+    activeDays: number;
+    avgPrMergeTime: number;
+  };
+  
+  codeChurn: Array<{ file: string; changes: number }>;
+  activityHeatmap: Array<{ week: number; day: number; commits: number }>;
 }
 
-export type IntelStatus = 'idle' | 'loading' | 'ok' | 'error';
+type Status = 'idle' | 'loading' | 'ok' | 'error';
 
 export function useRepoIntel() {
-  const [data,   setData]   = useState<RepoIntelData | null>(null);
-  const [status, setStatus] = useState<IntelStatus>('idle');
-  const [error,  setError]  = useState<string | null>(null);
+  const [data, setData] = useState<RepoIntelData | null>(null);
+  const [status, setStatus] = useState<Status>('idle');
+  const [error, setError] = useState<string | null>(null);
 
   const fetch = useCallback(async (owner: string, repo: string) => {
     setStatus('loading');
     setError(null);
+
     try {
-      const res = await window.fetch(`${API_BASE}/api/repo-intel`, {
-        method:  'POST',
+      console.log(`[Repo Intel] Fetching: ${owner}/${repo}`);
+      console.log(`[Repo Intel] API URL: ${API_BASE}/api/repo-intel`);
+
+      const res = await globalThis.fetch(`${API_BASE}/api/repo-intel`, {
+        method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body:    JSON.stringify({ owner, repo }),
+        body: JSON.stringify({ owner, repo }),
       });
+
+      console.log(`[Repo Intel] Response status: ${res.status}`);
+
       if (!res.ok) {
-        const e = await res.json().catch(() => ({}));
-        throw new Error(e.detail ?? `HTTP ${res.status}`);
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.detail ?? `HTTP ${res.status}`);
       }
-      const json = await res.json();
-      setData(json);
+
+      const result = await res.json();
+      console.log('[Repo Intel] Data received successfully');
+      setData(result);
       setStatus('ok');
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load intel');
+      console.error('[Repo Intel] Error:', err);
+      setError(err instanceof Error ? err.message : 'Failed to fetch repo intelligence');
       setStatus('error');
     }
   }, []);
 
-  const reset = useCallback(() => {
-    setData(null);
-    setStatus('idle');
-    setError(null);
-  }, []);
-
-  return { data, status, error, fetch, reset };
+  return { data, status, error, fetch };
 }

@@ -8,6 +8,7 @@ import RepoIntel from './RepoIntel';
 import ClientCanvasWrapper from './ClientCanvasWrapper';
 import NodeTooltip from './NodeTooltip';
 import FrontLoading from './FrontLoading';
+import RepoIntel from './RepoIntel';
 import { useRepoIntel } from '@/hooks/useRepoIntel';
 import { useGraphStore } from '@/stores/graphStore';
 
@@ -15,18 +16,14 @@ type PanelMode = 'inspector' | 'intel';
 
 export default function Layout() {
   const [isLoadingComplete, setIsLoadingComplete] = useState(false);
-  const [panelMode, setPanelMode]                 = useState<PanelMode>('inspector');
+  const [panelMode, setPanelMode] = useState<PanelMode>('inspector');
 
   const { data: intelData, status: intelStatus, error: intelError, fetch: fetchIntel } = useRepoIntel();
 
-  // Listen to graph store for owner/repo — Header already sets graph data
-  // We expose a trigger via the panel toggle button
   const nodes = useGraphStore((s) => s.nodes);
-
-  // Extract owner/repo from node metadata (root node has manifestPath)
-  const rootNode  = nodes.find((n) => n.metadata?.isRoot);
+  const rootNode = nodes.find((n) => n.metadata?.isRoot);
   const repoOwner = (rootNode?.metadata?.repoOwner as string) ?? '';
-  const repoName  = (rootNode?.metadata?.repoName  as string) ?? '';
+  const repoName = (rootNode?.metadata?.repoName as string) ?? '';
 
   const handlePanelToggle = (mode: PanelMode) => {
     setPanelMode(mode);
@@ -48,34 +45,24 @@ export default function Layout() {
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
-            transition={{ duration: 0.6, ease: 'easeOut' }}
-            className="flex min-h-screen flex-col bg-black text-slate-100"
+            transition={{ duration: 0.6, ease: "easeOut" }}
+            className="h-screen overflow-hidden flex flex-col bg-black text-slate-100"
           >
-            {/* Pass fetchIntel + setPanelMode so Header can trigger intel after analyze */}
-            <Header
-              onAnalyzeSuccess={(owner, repo) => {
-                setPanelMode('inspector');
-                fetchIntel(owner, repo);
-              }}
-            />
+            <Header onAnalyzeSuccess={(owner, repo) => {
+              setPanelMode('inspector');
+              fetchIntel(owner, repo);
+            }} />
 
             <main
-              className="grid flex-1"
-              style={{
-                height: 'calc(100vh - 57px)',
-                gridTemplateColumns: 'minmax(0,1fr) 340px',
-              }}
+              className="grid flex-1 min-h-0"
+              style={{ gridTemplateColumns: 'minmax(0,1fr) 340px' }}
             >
-              {/* ── 3D canvas ─────────────────────────────────── */}
-              <section className="relative">
+              <section className="relative overflow-hidden">
                 <ClientCanvasWrapper />
                 <NodeTooltip />
               </section>
 
-              {/* ── Right panel ───────────────────────────────── */}
               <div className="flex flex-col overflow-hidden border-l border-slate-800">
-
-                {/* Panel toggle tabs */}
                 <div className="shrink-0 flex border-b border-slate-800">
                   <button
                     type="button"
@@ -107,18 +94,16 @@ export default function Layout() {
                   </button>
                 </div>
 
-                {/* Panel content */}
-                <div className="flex-1 overflow-hidden">
+                <div className="flex-1 min-h-0 overflow-hidden">
                   {panelMode === 'inspector' && <Inspector />}
 
                   {panelMode === 'intel' && intelStatus === 'loading' && (
                     <div className="flex flex-col items-center justify-center h-full gap-3">
                       <svg className="w-6 h-6 animate-spin text-indigo-400" fill="none" viewBox="0 0 24 24">
                         <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                        <path className="opacity-75" fill="currentColor"
-                          d="M4 12a8 8 0 018-8v4l3-3-3-3v4A8 8 0 004 12z" />
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4l3-3-3-3v4A8 8 0 004 12z" />
                       </svg>
-                      <p className="text-xs text-slate-500">Fetching repo intelligence…</p>
+                      <p className="text-xs text-slate-500">Fetching repository intelligence…</p>
                     </div>
                   )}
 
@@ -138,17 +123,13 @@ export default function Layout() {
                   {panelMode === 'intel' && intelStatus === 'idle' && (
                     <div className="flex flex-col items-center justify-center h-full gap-2 px-6 text-center">
                       <p className="text-xs text-slate-500">
-                        Analyse a repo first, then switch to Repo Intel.
+                        Analyze a repo first, then switch to Repo Intel.
                       </p>
                     </div>
                   )}
 
                   {panelMode === 'intel' && intelStatus === 'ok' && intelData && (
-                    <RepoIntel
-                      data={intelData}
-                      owner={repoOwner}
-                      repo={repoName}
-                    />
+                    <RepoIntel data={intelData} owner={repoOwner} repo={repoName} />
                   )}
                 </div>
               </div>

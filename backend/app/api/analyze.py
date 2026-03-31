@@ -17,7 +17,7 @@ from pydantic import BaseModel
 from app.services.dependency_analyzer import DependencyAnalyzer
 from app.services.github_service import github_service
 
-router = APIRouter(prefix="/api", tags=["analyze"])
+router = APIRouter(tags=["analyze"])  # ✅ FIXED: removed prefix="/api"
 
 
 # ------------------------------------------------------------------ #
