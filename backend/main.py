@@ -1,6 +1,6 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from app.api import analyze, graph
+from app.api import analyze, graph, repo_intel
 from app.core.database import init_db
 
 app = FastAPI(
@@ -9,32 +9,33 @@ app = FastAPI(
     description="Multi-ecosystem dependency analysis API"
 )
 
-# ========================================
-# CRITICAL: CORS Configuration
-# ========================================
+# ✅ CORS Configuration - Supports localhost:8001 + localhost:3000 + Render
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
-        "https://open-pulse.onrender.com",      # Your production frontend
-        "http://localhost:3000",                 # Local dev
-        "http://127.0.0.1:3000",                # Local dev alternative
-        "http://localhost:10000",               # Render preview
+        # Production (Render)
+        "https://open-pulse.onrender.com",
+        "https://openpulse-43sj.onrender.com",
+        # Local development
+        "http://localhost:3000",
+        "http://127.0.0.1:3000",
+        "http://localhost:8001",
+        "http://127.0.0.1:8001",
     ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-# Include routers
-app.include_router(analyze.router, tags=["analyze"])
-app.include_router(graph.router, tags=["graph"])
-
+# ✅ Include routers with /api prefix
+app.include_router(analyze.router, prefix="/api", tags=["analyze"])
+app.include_router(graph.router, prefix="/api", tags=["graph"])
+app.include_router(repo_intel.router, prefix="/api", tags=["repo-intel"])
 
 @app.on_event("startup")
 async def startup():
     """Initialize database on startup"""
     await init_db()
-
 
 @app.get("/")
 async def root():
@@ -46,11 +47,11 @@ async def root():
         "endpoints": {
             "analyze": "/api/analyze",
             "graph": "/api/graph/data",
+            "repo-intel": "/api/repo-intel",
             "health": "/health",
             "docs": "/docs"
         }
     }
-
 
 @app.get("/health")
 async def health():
